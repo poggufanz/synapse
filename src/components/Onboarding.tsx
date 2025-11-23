@@ -120,7 +120,7 @@ export default function Onboarding() {
                             {/* Skip Button */}
                             <button
                                 onClick={() => {
-                                    setPersona({ name: "Friend" });
+                                    setPersona({ name: "Friend", type: "Action Taker", traits: [] });
                                     setStep(1);
                                 }}
                                 className="w-full text-slate-400 hover:text-slate-600 font-medium py-2 transition-colors text-sm"

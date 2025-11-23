@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Soft UI Shadows */
+  .shadow-soft-blue {
+    box-shadow: 0 10px 40px -10px rgba(59, 130, 246, 0.3);
+  }
+
+  .shadow-soft-orange {
+    box-shadow: 0 10px 40px -10px rgba(249, 115, 22, 0.3);
+  }
+
+  .shadow-clay {
+    box-shadow:
+      8px 8px 16px 0px rgba(166, 180, 200, 0.4),
+      -8px -8px 16px 0px rgba(255, 255, 255, 0.8);
+  }
+
+  .btn-primary {
+    @apply bg-blue-600 text-white font-bold py-3 px-6 rounded-2xl hover:bg-blue-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/30 active:scale-95;
+  }
+
+  /* Claymorphism / Juicy Buttons */
+  .btn-clay {
+    @apply border-b-4 active:border-b-0 active:translate-y-1 transition-all duration-100 rounded-2xl font-black;
+  }
+
+  .btn-clay-blue {
+    @apply bg-blue-500 border-blue-700 text-white hover:bg-blue-400;
+  }
+
+  .btn-clay-white {
+    @apply bg-white border-slate-200 text-slate-700 hover:bg-slate-50;
+  }
+
+  /* Soft Input with Inner Shadow */
+  .input-soft {
+    background-color: rgb(248 250 252);
+    border-width: 2px;
+    border-color: rgb(241 245 249);
+    border-radius: 1rem;
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+
+  .input-soft:focus {
+    outline: none;
+    border-color: rgb(96 165 250);
+    background-color: rgb(255 255 255);
+    box-shadow: none;
+  }
+
+  /* Glow Effect */
+  .drop-shadow-glow {
+    filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.6));
+  }
+
+  .btn-secondary {
+    @apply bg-white text-slate-700 font-bold py-3 px-6 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-all duration-300 shadow-sm hover:shadow-md active:scale-95;
+  }
+}

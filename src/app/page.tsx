@@ -2,7 +2,7 @@
 
 import { useEnergyStore } from "@/store/useEnergyStore";
 import EnergyGate from "@/components/EnergyGate";
-import ProductiveView from "@/components/ProductiveView";
+import FocusCockpit from "@/components/FocusCockpit";
 import BurnoutView from "@/components/BurnoutView";
 import Onboarding from "@/components/Onboarding";
 import TimeWarning from "@/components/TimeWarning";
@@ -21,7 +21,7 @@ export default function Home() {
             <TimeWarning />
 
             {!mode && <EnergyGate />}
-            {mode === "productive" && <ProductiveView />}
+            {mode === "productive" && <FocusCockpit />}
             {mode === "burnout" && <BurnoutView />}
         </main>
     );

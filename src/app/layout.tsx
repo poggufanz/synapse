@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
-import { Nunito } from "next/font/google";
+import { Nunito, Playfair_Display, Merriweather } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 
-const nunito = Nunito({ subsets: ["latin"] });
+const nunito = Nunito({ subsets: ["latin"], variable: "--font-nunito" });
+const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" });
+const merriweather = Merriweather({
+  weight: ["300", "400", "700", "900"],
+  subsets: ["latin"],
+  variable: "--font-merriweather"
+});
 
 export const metadata: Metadata = {
   title: "Synapse",
@@ -17,7 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={nunito.className}>
+      <body className={`${nunito.className} ${playfair.variable} ${merriweather.variable}`}>
         {children}
         <Toaster position="top-center" />
       </body>

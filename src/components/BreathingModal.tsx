@@ -9,29 +9,36 @@ interface BreathingModalProps {
 }
 
 export default function BreathingModal({ isOpen, onClose }: BreathingModalProps) {
-    const [step, setStep] = useState<"inhale" | "hold" | "exhale">("inhale");
-    const [text, setText] = useState("Breathe In");
+    const [phase, setPhase] = useState<"inhale" | "hold" | "exhale">("inhale");
+    const [text, setText] = useState("Breathe In...");
 
     useEffect(() => {
         if (!isOpen) return;
 
-        const cycle = () => {
-            setStep("inhale");
-            setText("Breathe In");
+        // Reset to initial state when opening
+        setPhase("inhale");
+        setText("Breathe In...");
 
+        const runCycle = () => {
+            // Phase 1: Inhale (0s - 4s)
+            setPhase("inhale");
+            setText("Breathe In...");
+
+            // Phase 2: Hold (4s - 8s)
             setTimeout(() => {
-                setStep("hold");
+                setPhase("hold");
                 setText("Hold");
+            }, 4000);
 
-                setTimeout(() => {
-                    setStep("exhale");
-                    setText("Breathe Out");
-                }, 4000); // Hold for 4s
-            }, 4000); // Inhale for 4s
+            // Phase 3: Exhale (8s - 12s)
+            setTimeout(() => {
+                setPhase("exhale");
+                setText("Breathe Out...");
+            }, 8000);
         };
 
-        cycle();
-        const interval = setInterval(cycle, 12000); // Total 12s cycle (4+4+4 for simplicity, or 4-7-8)
+        runCycle(); // Run immediately
+        const interval = setInterval(runCycle, 12000); // Repeat every 12s
 
         return () => clearInterval(interval);
     }, [isOpen]);
@@ -39,36 +46,52 @@ export default function BreathingModal({ isOpen, onClose }: BreathingModalProps)
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-[#F5F0E6]/90 backdrop-blur-md z-50 flex items-center justify-center animate-fadeIn">
+        <div className="fixed inset-0 bg-[#F5F0E6]/90 backdrop-blur-md z-[100] flex items-center justify-center animate-fadeIn">
             <button
-                onClick={onClose}
-                className="absolute top-8 right-8 text-stone-400 hover:text-stone-600 transition-colors"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                }}
+                className="absolute top-8 right-8 text-[#3E2723]/40 hover:text-[#3E2723] transition-colors p-2"
             >
                 <X size={32} />
             </button>
 
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center justify-center w-full h-full">
+                {/* Breathing Circle Container */}
                 <div className="relative flex items-center justify-center w-96 h-96">
-                    {/* Outer Circle */}
+                    {/* The Breathing Circle */}
                     <div
-                        className={`absolute rounded-full border-4 border-stone-300/30 transition-all duration-[4000ms] ease-in-out
-              ${step === "inhale" ? "w-80 h-80 opacity-100" : step === "hold" ? "w-80 h-80 opacity-100" : "w-32 h-32 opacity-50"}
-            `}
-                    />
-
-                    {/* Inner Circle (The Breather) */}
-                    <div className={`
-            rounded-full backdrop-blur-sm flex items-center justify-center transition-all duration-[4000ms] ease-in-out shadow-clay
-            ${step === "inhale" ? "w-64 h-64 bg-orange-200/40 shadow-[0_0_60px_rgba(251,146,60,0.4)]" : step === "hold" ? "w-64 h-64 bg-orange-200/40 shadow-[0_0_60px_rgba(251,146,60,0.4)]" : "w-24 h-24 bg-stone-300/20 shadow-none"}
-          `}>
-                        <span className="text-2xl font-medium text-stone-600 animate-pulse">
+                        className={`
+                            rounded-full flex items-center justify-center text-center
+                            transition-all duration-[4000ms] ease-in-out
+                            shadow-2xl
+                            ${phase === "inhale" ? "w-80 h-80 bg-[#D7CCC8]" :
+                                phase === "hold" ? "w-80 h-80 bg-[#D7CCC8]" :
+                                    "w-40 h-40 bg-[#D7CCC8]"}
+                        `}
+                    >
+                        <span className={`
+                            font-serif text-2xl md:text-3xl text-[#3E2723] font-medium tracking-wide
+                            transition-opacity duration-500
+                            ${phase === "hold" ? "opacity-100" : "opacity-90"}
+                        `}>
                             {text}
                         </span>
                     </div>
+
+                    {/* Outer Ripple/Guide Circle (Optional, for visual depth) */}
+                    <div
+                        className={`
+                            absolute rounded-full border-2 border-[#3E2723]/10
+                            transition-all duration-[4000ms] ease-in-out
+                            ${phase === "inhale" || phase === "hold" ? "w-96 h-96 opacity-100" : "w-48 h-48 opacity-50"}
+                        `}
+                    />
                 </div>
 
-                <p className="mt-8 text-stone-500 font-medium text-lg">
-                    Focus on the circle. Let your thoughts drift away.
+                <p className="mt-12 text-[#3E2723]/60 font-serif text-lg animate-pulse">
+                    Focus on your breath.
                 </p>
             </div>
         </div>

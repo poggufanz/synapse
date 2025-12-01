@@ -1,9 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useEnergyStore } from "@/store/useEnergyStore";
-import { useState, useEffect, useRef } from "react";
-import BreathingModal from "@/components/BreathingModal";
-import { MessageSquare, Wind, ArrowLeft, Music, BookOpen } from "lucide-react";
+import { useAppStore } from "@/store/useAppStore";
+import { ArrowLeft, Wind } from "lucide-react";
+import BreathingModal from "./BreathingModal";
+import Image from "next/image";
 
 interface ChatMessage {
     role: "user" | "ai";
@@ -13,192 +15,220 @@ interface ChatMessage {
 export default function BurnoutView() {
     const setMode = useEnergyStore((state) => state.setMode);
     const persona = useEnergyStore((state) => state.persona);
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [currentOptions, setCurrentOptions] = useState<string[]>([]);
-    const [isTyping, setIsTyping] = useState(false);
-    const [isBreathingModalOpen, setIsBreathingModalOpen] = useState(false);
-    const chatEndRef = useRef<HTMLDivElement>(null);
+    const setMoodState = useAppStore((state) => state.setMoodState);
 
-    // Auto-scroll to bottom when messages change
+    const [history, setHistory] = useState<ChatMessage[]>([]);
+    const [currentAiMessage, setCurrentAiMessage] = useState("");
+    const [lastUserResponse, setLastUserResponse] = useState<string | null>(null);
+
+    const [isBreathingOpen, setIsBreathingOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [showManualInput, setShowManualInput] = useState(false);
+    const [manualMessage, setManualMessage] = useState("");
+
+    // Initial greeting
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages, isTyping]);
-
-    // Initial greeting on mount
-    useEffect(() => {
-        const initChat = async () => {
-            setIsTyping(true);
-            try {
-                const response = await fetch("/api/chat-burnout", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        history: [],
-                        user_selection: "start conversation",
-                        persona,
-                    }),
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    setMessages([{ role: "ai", content: data.message }]);
-                    setCurrentOptions(data.options || []);
-                }
-            } catch (error) {
-                console.error("Failed to init chat", error);
-                setMessages([{ role: "ai", content: "hey. rough day?" }]);
-                setCurrentOptions(["yeah, really rough", "i'm exhausted", "just tired"]);
-            } finally {
-                setIsTyping(false);
-            }
-        };
-
-        initChat();
-    }, []);
+        if (history.length === 0 && !currentAiMessage) {
+            const initialMsg = `hey ${persona?.name.toLowerCase() || "friend"}. it's quiet here. no tasks, no pressure. just us. how are you feeling right now?`;
+            setCurrentAiMessage(initialMsg);
+            setHistory([{ role: "ai", content: initialMsg }]);
+        }
+    }, [persona, history.length, currentAiMessage]);
 
     const handleOptionClick = async (option: string) => {
-        // Add user message
-        const userMessage: ChatMessage = { role: "user", content: option };
-        setMessages((prev) => [...prev, userMessage]);
-        setCurrentOptions([]);
-        setIsTyping(true);
+        setLastUserResponse(option);
+        setIsLoading(true);
+
+        // Adaptive Logic: Set Mood State
+        if (option.toLowerCase().includes("anxious") || option.toLowerCase().includes("foggy")) {
+            setMoodState("anxious");
+        } else if (option.toLowerCase().includes("exhausted")) {
+            setMoodState("exhausted");
+        } else if (option.toLowerCase().includes("moment")) {
+            setMoodState("neutral");
+        }
+
+        const newHistory = [...history, { role: "user", content: option } as ChatMessage];
+        setHistory(newHistory);
 
         try {
-            // Build history for API
-            const history = [...messages, userMessage].map((msg) => ({
-                role: msg.role,
-                content: msg.content,
-            }));
-
             const response = await fetch("/api/chat-burnout", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    history,
-                    user_selection: option,
+                    history: newHistory,
+                    message: option,
                     persona,
                 }),
             });
 
             if (response.ok) {
                 const data = await response.json();
-                setMessages((prev) => [...prev, { role: "ai", content: data.message }]);
-                setCurrentOptions(data.options || []);
+                setCurrentAiMessage(data.message);
+                setHistory((prev) => [...prev, { role: "ai", content: data.message }]);
             }
         } catch (error) {
-            console.error("Failed to send message", error);
-            setMessages((prev) => [
-                ...prev,
-                { role: "ai", content: "sorry, i'm having trouble right now. let's just breathe." },
-            ]);
-            setCurrentOptions(["okay", "tell me more", "i need help"]);
+            console.error("Burnout chat error", error);
         } finally {
-            setIsTyping(false);
+            setIsLoading(false);
         }
     };
 
+    const options = [
+        "i'm exhausted",
+        "my brain is foggy",
+        "i feel anxious",
+        "just need a moment",
+        "Type your own..."
+    ];
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-zinc-900 to-slate-950 text-white p-4 md:p-8 relative flex flex-col">
-            {/* Discreet Reset Button */}
+        <div className="min-h-screen bg-[#F7F4EB] text-[#4A3728] py-12 px-4 relative flex flex-col items-center justify-center font-serif transition-opacity duration-1000 animate-[fadeIn_1s_ease-out] overflow-hidden">
+            {/* Breathing Modal (Glassmorphism handled in component) */}
+            <BreathingModal isOpen={isBreathingOpen} onClose={() => setIsBreathingOpen(false)} />
+
+            {/* Exit Button */}
             <button
                 onClick={() => setMode(null)}
-                className="absolute top-6 right-6 text-slate-500 hover:text-slate-400 text-sm transition-colors z-10 flex items-center gap-2"
+                className="absolute top-8 right-8 text-[#4A3728]/40 hover:text-[#4A3728] transition-colors z-50"
             >
-                <ArrowLeft size={16} /> Change Mode
+                <ArrowLeft size={24} />
             </button>
 
-            {/* Panic/Breathe Button in Corner */}
-            <button
-                onClick={() => setIsBreathingModalOpen(true)}
-                className="fixed bottom-6 right-6 bg-rose-500/20 hover:bg-rose-500/30 backdrop-blur-sm border border-rose-400/30 text-rose-200 font-semibold py-4 px-6 rounded-full transition-all duration-300 shadow-lg hover:shadow-rose-500/30 hover:scale-105 z-10 flex items-center gap-2"
-            >
-                <Wind size={20} /> Breathe
-            </button>
+            <div className="w-full max-w-4xl flex flex-col items-center relative z-10 space-y-12">
 
-            {/* Breathing Modal */}
-            <BreathingModal
-                isOpen={isBreathingModalOpen}
-                onClose={() => setIsBreathingModalOpen(false)}
-            />
-
-            <div className="max-w-3xl mx-auto w-full flex-1 flex flex-col py-8">
-                {/* Header */}
-                <div className="text-center mb-8">
-                    <div className="text-5xl mb-4 opacity-70 flex justify-center">
-                        <div className="bg-indigo-500/10 p-4 rounded-full">
-                            <MessageSquare size={48} className="text-indigo-300" />
-                        </div>
+                {/* TOP: The Mascot (Claymorphism Anchor) */}
+                {/* Soft Clay Disc: rounded-full, shadow-xl, inner shadow for 3D puffiness */}
+                <div className="relative w-72 h-72 md:w-80 md:h-80 flex items-center justify-center rounded-full bg-[#F7F4EB] shadow-[20px_20px_60px_#d2cfc8,-20px_-20px_60px_#ffffff,inset_10px_10px_30px_#d2cfc8,inset_-10px_-10px_30px_#ffffff] animate-[float_6s_ease-in-out_infinite]">
+                    <div className="relative w-56 h-56 md:w-64 md:h-64">
+                        <Image
+                            src="/images/koala_mascot.png"
+                            alt="Koala Mascot"
+                            fill
+                            className="object-contain mix-blend-multiply drop-shadow-xl"
+                            priority
+                        />
                     </div>
-                    <h1 className="text-3xl md:text-4xl font-light text-indigo-100 leading-relaxed mb-2">
-                        It's okay to pause.
-                    </h1>
-                    <p className="text-indigo-300/60 text-sm">no typing needed. just tap what feels right.</p>
                 </div>
 
-                {/* Chat Container */}
-                <div className="flex-1 bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 mb-6 overflow-y-auto max-h-[500px] space-y-4">
-                    {messages.map((message, index) => (
-                        <div
-                            key={index}
-                            className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                        >
-                            <div
-                                className={`max-w-[80%] px-5 py-3 rounded-2xl ${message.role === "user"
-                                    ? "bg-indigo-600/40 text-indigo-100 rounded-br-md"
-                                    : "bg-slate-700/50 text-slate-200 rounded-bl-md"
-                                    }`}
-                            >
-                                <p className="text-sm md:text-base leading-relaxed">{message.content}</p>
-                            </div>
-                        </div>
-                    ))}
+                {/* MIDDLE: The Conversation */}
+                <div className="w-full flex flex-col items-center justify-center text-center space-y-6">
 
-                    {/* Typing Indicator */}
-                    {isTyping && (
-                        <div className="flex justify-start">
-                            <div className="bg-slate-700/50 text-slate-200 px-5 py-3 rounded-2xl rounded-bl-md">
-                                <div className="flex gap-1">
-                                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-pulse"></span>
-                                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-pulse delay-100"></span>
-                                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-pulse delay-200"></span>
-                                </div>
-                            </div>
+                    {/* Previous User Answer Bubble */}
+                    {lastUserResponse && !isLoading && (
+                        <div className="animate-[fadeIn_1s_ease-out] bg-[#F7F4EB] px-6 py-2 rounded-full text-sm font-medium text-[#4A3728]/60 mb-4 shadow-[inset_4px_4px_8px_#d2cfc8,inset_-4px_-4px_8px_#ffffff]">
+                            "{lastUserResponse}"
                         </div>
                     )}
 
-                    <div ref={chatEndRef} />
+                    {/* Loading State */}
+                    {isLoading ? (
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="flex gap-2 items-center">
+                                <div className="w-3 h-3 bg-[#4A3728] rounded-full animate-bounce" />
+                                <div className="w-3 h-3 bg-[#4A3728] rounded-full animate-bounce delay-100" />
+                                <div className="w-3 h-3 bg-[#4A3728] rounded-full animate-bounce delay-200" />
+                            </div>
+                            <p className="text-[#4A3728]/50 italic text-lg font-merriweather">listening...</p>
+                        </div>
+                    ) : (
+                        /* AI Hero Text */
+                        <div className="max-w-2xl animate-[fadeIn_1.5s_ease-out]">
+                            <h1 className="text-2xl md:text-3xl lg:text-4xl font-merriweather font-medium text-[#4A3728] leading-relaxed tracking-tight">
+                                {currentAiMessage}
+                            </h1>
+                        </div>
+                    )}
                 </div>
 
-                {/* Option Buttons (Instead of Input) */}
-                {currentOptions.length > 0 && !isTyping && (
-                    <div className="space-y-3">
-                        {currentOptions.map((option, index) => (
-                            <button
-                                key={index}
-                                onClick={() => handleOptionClick(option)}
-                                className="w-full bg-slate-700/40 hover:bg-slate-700/60 backdrop-blur-sm border border-slate-600/40 hover:border-slate-500/60 text-slate-200 font-medium py-4 px-6 rounded-full transition-all duration-300 hover:scale-[1.02] text-left"
-                            >
-                                {option}
-                            </button>
-                        ))}
-                    </div>
-                )}
+                {/* BOTTOM: The Options (Tactile Clay Buttons) */}
+                <div className="w-full flex flex-col items-center justify-end space-y-8">
+                    {/* Options */}
+                    {!isLoading && (
+                        <div className="w-full animate-[slideUp_0.5s_ease-out]">
+                            {/* Predefined Options */}
+                            {!showManualInput && (
+                                <div className="flex flex-wrap justify-center gap-4">
+                                    {options.map((opt) => (
+                                        <button
+                                            key={opt}
+                                            onClick={() => {
+                                                if (opt === "Type your own...") {
+                                                    setShowManualInput(true);
+                                                } else {
+                                                    handleOptionClick(opt);
+                                                }
+                                            }}
+                                            // Clay Button Style: Soft Pastel Blue/Green tint (#E0F2F1 is soft teal)
+                                            // Normal: Deep drop shadow + Inner light shadow
+                                            // Hover: Lift up (translate-y-1)
+                                            // Active: Press down (inset shadow increases)
+                                            className="
+                                                bg-[#E0F2F1] text-[#2F4F4F] 
+                                                px-8 py-4 rounded-full font-medium text-lg 
+                                                shadow-[8px_8px_16px_#d1d9e6,-8px_-8px_16px_#ffffff,inset_2px_2px_4px_rgba(255,255,255,0.5)]
+                                                hover:-translate-y-1 hover:shadow-[10px_10px_20px_#d1d9e6,-10px_-10px_20px_#ffffff]
+                                                active:translate-y-0 active:shadow-[inset_6px_6px_12px_#b8cbb8,inset_-6px_-6px_12px_#ffffff]
+                                                transition-all duration-200 ease-in-out
+                                            "
+                                        >
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
 
-                {/* Secondary Options */}
-                <div className="mt-6 pt-6 border-t border-slate-700/30">
-                    <p className="text-slate-500 text-xs text-center mb-4">other things you can try</p>
-                    <div className="grid grid-cols-2 gap-3">
-                        <button className="bg-slate-800/30 hover:bg-slate-800/40 backdrop-blur-sm border border-slate-600/30 text-slate-400 hover:text-slate-300 font-medium py-3 px-4 rounded-xl transition-all duration-300 hover:scale-105 text-sm flex items-center justify-center gap-2">
-                            <Music size={16} /> Calming Sounds
-                        </button>
-                        <button className="bg-slate-800/30 hover:bg-slate-800/40 backdrop-blur-sm border border-slate-600/30 text-slate-400 hover:text-slate-300 font-medium py-3 px-4 rounded-xl transition-all duration-300 hover:scale-105 text-sm flex items-center justify-center gap-2">
-                            <BookOpen size={16} /> Read Something Light
-                        </button>
-                    </div>
+                            {/* Manual Input */}
+                            {showManualInput && (
+                                <div className="space-y-4 max-w-lg mx-auto w-full">
+                                    <textarea
+                                        value={manualMessage}
+                                        onChange={(e) => setManualMessage(e.target.value)}
+                                        placeholder="Tell me..."
+                                        className="w-full p-6 bg-[#F7F4EB] rounded-3xl border-0 shadow-[inset_6px_6px_12px_#d2cfc8,inset_-6px_-6px_12px_#ffffff] focus:outline-none text-[#4A3728] font-merriweather text-xl resize-none h-32 transition-all placeholder:text-[#4A3728]/30 text-center leading-relaxed"
+                                        autoFocus
+                                    />
+                                    <div className="flex gap-3 justify-center">
+                                        <button
+                                            onClick={() => {
+                                                if (manualMessage.trim()) {
+                                                    handleOptionClick(manualMessage);
+                                                    setManualMessage("");
+                                                    setShowManualInput(false);
+                                                }
+                                            }}
+                                            disabled={!manualMessage.trim()}
+                                            className="bg-[#4A3728] text-[#F7F4EB] px-10 py-3 rounded-full font-bold text-lg shadow-[8px_8px_16px_#d2cfc8,-8px_-8px_16px_#ffffff] hover:-translate-y-1 active:shadow-[inset_4px_4px_8px_#2d2118,inset_-4px_-4px_8px_#675d58] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                        >
+                                            Send
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setShowManualInput(false);
+                                                setManualMessage("");
+                                            }}
+                                            className="px-8 py-3 text-[#4A3728]/60 hover:text-[#4A3728] font-medium transition-colors"
+                                        >
+                                            Back
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Breathe Button */}
+                    {!showManualInput && (
+                        <div className="flex justify-center mt-8">
+                            <button
+                                onClick={() => setIsBreathingOpen(true)}
+                                className="group relative flex items-center gap-3 text-[#4A3728]/60 px-8 py-3 rounded-full font-merriweather text-base hover:bg-white/40 transition-all hover:text-[#4A3728] hover:shadow-sm"
+                            >
+                                <Wind className="w-5 h-5 opacity-60 group-hover:opacity-100 transition-opacity" />
+                                <span className="italic tracking-wide">breathe with me</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

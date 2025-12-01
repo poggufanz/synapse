@@ -3,69 +3,42 @@ import { NextResponse } from "next/server";
 
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "");
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
     try {
-        const { history, user_selection, persona } = await request.json();
-
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-        // Build conversation context
-        let conversationContext = "";
-        if (history && history.length > 0) {
-            conversationContext = history.map((msg: any) =>
-                `${msg.role}: ${msg.content}`
-            ).join("\n");
-        }
+        const { history, message, persona } = await req.json();
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const systemPrompt = `
-      You are a gentle, supportive companion for someone experiencing burnout.
+      You are a calm, empathetic, and gentle AI companion for someone experiencing burnout.
       The user's name is ${persona?.name || "Friend"}.
-      Their persona type is "${persona?.type || "Sensitive Soul"}".
+      Their personality type is "${persona?.type || "Unknown"}" (Traits: ${persona?.traits?.join(", ") || "Unknown"}).
       
-      Your goal is to validate their feelings, offer very simple comforting words, and help them decompress.
+      Your Goal: Help them decompress. No pressure. No advice unless asked. Just listening and validating.
+      Tone: Soft, lowercase, minimalist, soothing. Like a whisper in a quiet room.
+      Avoid: Lists, bullet points, "fix-it" mentality, excitement, loud punctuation (!). 
       
-      Adjust your tone based on their persona:
-      - "Sensitive Soul": Be extra warm, validating, and soft.
-      - "Action Taker": Remind them that rest is part of the process. It's okay to stop.
-      - "Deep Thinker": Help them quiet their mind. Reassure them that the problems can wait.
-      
-      IMPORTANT:
-      - Respond in all lowercase to feel less formal and more calming.
-      - Keep responses short (1-2 sentences max).
-      - Do not offer "solutions" or "advice" unless explicitly asked. Just be there.
-      - Provide 3 simple, low-effort options for them to reply with.
-
-      OUTPUT FORMAT MUST BE JSON:
-      {
-        "message": "ai response text here",
-        "options": ["Option A", "Option B", "Option C"]
-      }
-
-      Previous conversation:
-      ${conversationContext}
-
-      User's current selection: "${user_selection}"
-
-      Respond with ONLY the JSON object, no markdown formatting or extra text.
+      Example interaction:
+      User: "I'm so tired."
+      You: "i hear you. it's been a lot lately. just breathe for a moment. you're safe here."
     `;
 
-        const result = await model.generateContent(systemPrompt);
-        const response = await result.response;
-        const text = response.text();
-
-        // Clean up any potential markdown formatting
-        const cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim();
-
-        const aiResponse = JSON.parse(cleanText);
-
-        return NextResponse.json(aiResponse);
-    } catch (error) {
-        console.error("Error in chat-burnout:", error);
-
-        // Fallback response if AI fails
-        return NextResponse.json({
-            message: "i'm here for you. let's take it slow.",
-            options: ["i need a break", "i'm overwhelmed", "just listen"]
+        const chat = model.startChat({
+            history: [
+                { role: "user", parts: [{ text: systemPrompt }] },
+                { role: "model", parts: [{ text: "understood. i am ready to be a calm presence." }] },
+                ...history.map((msg: any) => ({
+                    role: msg.role === "ai" ? "model" : "user",
+                    parts: [{ text: msg.content }],
+                })),
+            ],
         });
+
+        const result = await chat.sendMessage(message);
+        const response = result.response.text();
+
+        return NextResponse.json({ message: response });
+    } catch (error) {
+        console.error("Burnout Chat Error:", error);
+        return NextResponse.json({ message: "..." }, { status: 500 });
     }
 }

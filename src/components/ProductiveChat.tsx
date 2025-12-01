@@ -56,10 +56,10 @@ export default function ProductiveChat() {
         return (
             <button
                 onClick={() => setIsOpen(true)}
-                className="fixed bottom-6 right-6 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-all duration-300 z-40 group"
+                className="fixed bottom-28 right-8 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg hover:shadow-blue-200 transition-all hover:scale-110 z-40 group border-b-4 border-blue-800 active:border-b-0 active:translate-y-1"
             >
-                <Bot size={24} />
-                <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                <Bot size={28} />
+                <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-slate-800 text-white text-xs px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold">
                     Sparring Partner
                 </span>
             </button>
@@ -68,25 +68,30 @@ export default function ProductiveChat() {
 
     return (
         <div
-            className={`fixed right-6 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-2xl transition-all duration-300 z-40 flex flex-col overflow-hidden ${isMinimized ? "bottom-6 w-72 h-16" : "bottom-6 w-80 md:w-96 h-[500px]"
+            className={`fixed right-8 bg-white border border-slate-200 rounded-[32px] shadow-2xl transition-all duration-300 z-40 flex flex-col overflow-hidden ${isMinimized ? "bottom-28 w-72 h-20" : "bottom-28 w-80 md:w-96 h-[600px]"
                 }`}
         >
             {/* Header */}
-            <div className="bg-slate-800/50 p-4 flex items-center justify-between border-b border-slate-700 cursor-pointer" onClick={() => setIsMinimized(!isMinimized)}>
-                <div className="flex items-center gap-2">
-                    <Bot className="text-cyan-400" size={20} />
-                    <span className="font-bold text-white text-sm">Sparring Partner</span>
+            <div className="bg-white p-4 flex items-center justify-between border-b border-slate-100 cursor-pointer" onClick={() => setIsMinimized(!isMinimized)}>
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-50 rounded-xl">
+                        <Bot className="text-blue-600" size={20} />
+                    </div>
+                    <div>
+                        <span className="font-bold text-slate-800 text-sm block">Sparring Partner</span>
+                        <span className="text-xs text-slate-400 font-medium">Online</span>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <button
                         onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
-                        className="text-slate-400 hover:text-white transition-colors"
+                        className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-50 rounded-lg"
                     >
                         {isMinimized ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
-                        className="text-slate-400 hover:text-red-400 transition-colors"
+                        className="text-slate-400 hover:text-red-500 transition-colors p-1 hover:bg-red-50 rounded-lg"
                     >
                         <X size={16} />
                     </button>
@@ -96,11 +101,11 @@ export default function ProductiveChat() {
             {/* Chat Area */}
             {!isMinimized && (
                 <>
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-900/50">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
                         {messages.length === 0 && (
-                            <div className="text-center text-slate-500 text-sm mt-8">
-                                <p>Ready to spar, {persona?.name}.</p>
-                                <p className="text-xs mt-1 opacity-70">Let's tackle that complex problem.</p>
+                            <div className="text-center text-slate-400 text-sm mt-8">
+                                <p className="font-bold text-slate-600">Ready to spar, {persona?.name}.</p>
+                                <p className="text-xs mt-1">Let's tackle that complex problem.</p>
                             </div>
                         )}
                         {messages.map((msg, idx) => (
@@ -109,9 +114,9 @@ export default function ProductiveChat() {
                                 className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                             >
                                 <div
-                                    className={`max-w-[85%] px-4 py-2 rounded-2xl text-sm ${msg.role === "user"
-                                            ? "bg-cyan-600/20 text-cyan-100 border border-cyan-500/30 rounded-br-sm"
-                                            : "bg-slate-800 text-slate-200 border border-slate-700 rounded-bl-sm"
+                                    className={`max-w-[85%] px-5 py-3 rounded-2xl text-sm font-medium shadow-sm ${msg.role === "user"
+                                        ? "bg-blue-600 text-white rounded-br-sm"
+                                        : "bg-white text-slate-700 border border-slate-100 rounded-bl-sm"
                                         }`}
                                 >
                                     {msg.content}
@@ -120,11 +125,11 @@ export default function ProductiveChat() {
                         ))}
                         {isLoading && (
                             <div className="flex justify-start">
-                                <div className="bg-slate-800 px-4 py-2 rounded-2xl rounded-bl-sm border border-slate-700">
+                                <div className="bg-white px-4 py-3 rounded-2xl rounded-bl-sm border border-slate-100 shadow-sm">
                                     <div className="flex gap-1">
-                                        <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" />
-                                        <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce delay-100" />
-                                        <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce delay-200" />
+                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" />
+                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce delay-100" />
+                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce delay-200" />
                                     </div>
                                 </div>
                             </div>
@@ -133,7 +138,7 @@ export default function ProductiveChat() {
                     </div>
 
                     {/* Input */}
-                    <div className="p-3 bg-slate-800/50 border-t border-slate-700">
+                    <div className="p-3 bg-white border-t border-slate-100">
                         <div className="flex gap-2">
                             <input
                                 type="text"
@@ -141,12 +146,12 @@ export default function ProductiveChat() {
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
                                 placeholder="Ask me anything..."
-                                className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                                className="flex-1 bg-slate-50 border-transparent focus:bg-white border focus:border-blue-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none transition-all font-medium"
                             />
                             <button
                                 onClick={handleSend}
                                 disabled={!input.trim() || isLoading}
-                                className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-xl transition-colors disabled:opacity-50"
+                                className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl transition-colors disabled:opacity-50 shadow-soft-blue"
                             >
                                 <Send size={18} />
                             </button>

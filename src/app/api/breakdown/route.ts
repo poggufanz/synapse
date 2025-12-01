@@ -3,48 +3,45 @@ import { NextResponse } from "next/server";
 
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "");
 
-export async function POST(request: Request) {
-    try {
-        const { task } = await request.json();
+export async function POST(req: Request) {
+  try {
+    const { task } = await req.json();
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        if (!task) {
-            return NextResponse.json(
-                { error: "Task is required" },
-                { status: 400 }
-            );
+    const prompt = `
+      You are an expert project manager and gamification master.
+      Deconstruct the following user input (Brain Dump) into 3-6 actionable "Micro-missions".
+      
+      Input: "${task}"
+      
+      For each mission, provide:
+      1. "action": A short, punchy verb phrase (e.g., "Draft Outline", "Email Client"). Max 4 words.
+      2. "summary": A 1-sentence explanation of what to do.
+      3. "energy": "Deep Work", "Shallow Work", or "Recovery".
+      4. "source": Where this came from (e.g., "User Input").
+      
+      Return ONLY a JSON array of objects.
+      Example:
+      [
+        {
+          "action": "Research Competitors",
+          "summary": "Look at top 3 competitors and note their pricing.",
+          "energy": "Shallow Work",
+          "source": "User Input"
         }
+      ]
+    `;
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(prompt);
+    const response = result.response.text();
 
-        const prompt = `You are an expert Productivity Architect. Break down the user's vague task into 3-5 small, actionable micro-steps. Assign an 'energy_tag' (Deep Work, Shallow Work, or Recovery) to each. 
-    
-    User Task: "${task}"
-    
-    Return ONLY a raw JSON array with this structure:
-    [
-      {
-        "step": "Actionable step description",
-        "energy_tag": "Deep Work" | "Shallow Work" | "Recovery"
-      }
-    ]
-    
-    Do not include markdown formatting like \`\`\`json or \`\`\`. Just the raw JSON array.`;
+    // Clean up markdown code blocks if present
+    const cleanResponse = response.replace(/```json/g, "").replace(/```/g, "").trim();
+    const tasks = JSON.parse(cleanResponse);
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-
-        // Clean up any potential markdown formatting just in case
-        const cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim();
-
-        const microSteps = JSON.parse(cleanText);
-
-        return NextResponse.json(microSteps);
-    } catch (error) {
-        console.error("Error breaking down task:", error);
-        return NextResponse.json(
-            { error: "Failed to break down task" },
-            { status: 500 }
-        );
-    }
+    return NextResponse.json(tasks);
+  } catch (error) {
+    console.error("Breakdown Error:", error);
+    return NextResponse.json({ error: "Failed to break down task" }, { status: 500 });
+  }
 }

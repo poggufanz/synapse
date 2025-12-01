@@ -1,25 +1,24 @@
 "use client";
 
+import { Line } from "react-chartjs-2";
 import {
     Chart as ChartJS,
     CategoryScale,
     LinearScale,
     PointElement,
     LineElement,
-    ArcElement,
     Title,
     Tooltip,
     Legend,
     Filler,
 } from "chart.js";
-import { Line, Doughnut } from "react-chartjs-2";
+import { TrendingUp } from "lucide-react";
 
 ChartJS.register(
     CategoryScale,
     LinearScale,
     PointElement,
     LineElement,
-    ArcElement,
     Title,
     Tooltip,
     Legend,
@@ -27,145 +26,71 @@ ChartJS.register(
 );
 
 export default function DashboardStats() {
-    // Energy Rhythm Data
-    const energyData = {
-        labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    const data = {
+        labels: ["9AM", "12PM", "3PM", "6PM", "9PM"],
         datasets: [
             {
-                label: "Energy Level",
-                data: [3, 4, 8, 9, 2, 4, 6],
-                borderColor: "rgb(99, 102, 241)",
-                backgroundColor: (context: any) => {
-                    const ctx = context.chart.ctx;
-                    const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-                    gradient.addColorStop(0, "rgba(99, 102, 241, 0.4)");
-                    gradient.addColorStop(1, "rgba(99, 102, 241, 0.0)");
-                    return gradient;
-                },
+                label: "Energy",
+                data: [65, 85, 45, 70, 50],
+                borderColor: "rgb(59, 130, 246)",
+                backgroundColor: "rgba(59, 130, 246, 0.5)",
                 tension: 0.4,
+                pointRadius: 0, // Hide points for cleaner look
+                borderWidth: 4, // Thicker line
                 fill: true,
-                pointRadius: 6,
-                pointHoverRadius: 8,
-                pointBackgroundColor: "rgb(99, 102, 241)",
-                pointBorderColor: "#fff",
-                pointBorderWidth: 2,
             },
         ],
     };
 
-    const energyOptions = {
+    const options = {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
             legend: {
                 display: false,
             },
-            tooltip: {
-                backgroundColor: "rgba(15, 23, 42, 0.9)",
-                titleColor: "#fff",
-                bodyColor: "#fff",
-                padding: 12,
-                displayColors: false,
-            },
         },
         scales: {
             y: {
+                display: false, // Hide Y axis
                 beginAtZero: true,
-                max: 10,
-                ticks: {
-                    color: "#94a3b8",
-                },
-                grid: {
-                    color: "rgba(148, 163, 184, 0.1)",
-                },
             },
             x: {
-                ticks: {
-                    color: "#94a3b8",
-                },
                 grid: {
-                    display: false,
+                    display: false, // Hide grid lines
                 },
-            },
-        },
-    };
-
-    // Task Balance Data
-    const taskBalanceData = {
-        labels: ["Deep Work", "Shallow Work", "Recovery"],
-        datasets: [
-            {
-                data: [40, 30, 30],
-                backgroundColor: [
-                    "rgba(239, 68, 68, 0.8)",
-                    "rgba(59, 130, 246, 0.8)",
-                    "rgba(34, 197, 94, 0.8)",
-                ],
-                borderColor: [
-                    "rgb(239, 68, 68)",
-                    "rgb(59, 130, 246)",
-                    "rgb(34, 197, 94)",
-                ],
-                borderWidth: 2,
-            },
-        ],
-    };
-
-    const taskBalanceOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: "bottom" as const,
-                labels: {
-                    color: "#94a3b8",
-                    padding: 15,
+                ticks: {
                     font: {
-                        size: 12,
+                        family: "'Nunito', sans-serif",
+                        weight: "bold" as const,
                     },
                 },
             },
-            tooltip: {
-                backgroundColor: "rgba(15, 23, 42, 0.9)",
-                titleColor: "#fff",
-                bodyColor: "#fff",
-                padding: 12,
-            },
         },
+        elements: {
+            bar: {
+                borderRadius: 20, // Chunky rounded bars
+            }
+        }
     };
 
     return (
-        <div className="space-y-6">
-            {/* Charts Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Energy Rhythm Chart */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                    <h3 className="text-lg font-bold text-slate-800 mb-4">Energy Rhythm</h3>
-                    <div className="h-64">
-                        <Line data={energyData} options={energyOptions} />
+        <div className="bg-white rounded-[32px] p-6 shadow-soft-blue border border-slate-100 h-full flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-50 rounded-xl">
+                        <TrendingUp className="text-blue-600" size={20} />
                     </div>
+                    <h3 className="text-lg font-bold text-slate-800">Energy Rhythm</h3>
                 </div>
-
-                {/* Task Balance Chart */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                    <h3 className="text-lg font-bold text-slate-800 mb-4">Task Balance</h3>
-                    <div className="h-64">
-                        <Doughnut data={taskBalanceData} options={taskBalanceOptions} />
-                    </div>
+                <div className="flex items-center gap-1 text-green-500 bg-green-50 px-2 py-1 rounded-lg">
+                    <TrendingUp size={14} />
+                    <span className="text-xs font-bold">+12%</span>
                 </div>
             </div>
 
-            {/* AI Insight Card */}
-            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 shadow-sm border border-indigo-200">
-                <div className="flex items-start gap-4">
-                    <div className="text-3xl">🧠</div>
-                    <div className="flex-1">
-                        <h4 className="text-lg font-bold text-indigo-900 mb-2">AI Analysis</h4>
-                        <p className="text-indigo-800 leading-relaxed">
-                            You crashed on Thursday because you did too much Deep Work on Wednesday. Pace yourself!
-                        </p>
-                    </div>
-                </div>
+            <div className="flex-1 min-h-[120px]">
+                <Line data={data} options={options} />
             </div>
         </div>
     );

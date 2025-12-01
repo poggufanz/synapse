@@ -2,40 +2,27 @@
 
 import { useEnergyStore } from "@/store/useEnergyStore";
 import EnergyGate from "@/components/EnergyGate";
-import ProductiveView from "@/components/ProductiveView";
+import FocusCockpit from "@/components/FocusCockpit";
 import BurnoutView from "@/components/BurnoutView";
-import TimeWarning from "@/components/TimeWarning";
 import Onboarding from "@/components/Onboarding";
+import TimeWarning from "@/components/TimeWarning";
 
 export default function Home() {
-  const mode = useEnergyStore((state) => state.mode);
-  const persona = useEnergyStore((state) => state.persona);
+    const mode = useEnergyStore((state) => state.mode);
+    const persona = useEnergyStore((state) => state.persona);
 
-  // Onboarding Flow
-  if (!persona) {
-    return <Onboarding />;
-  }
+    // If no persona is set, show Onboarding
+    if (!persona) {
+        return <Onboarding />;
+    }
 
-  // Show EnergyGate if mode is null
-  if (mode === null) {
     return (
-      <>
-        <TimeWarning />
-        <EnergyGate />
-      </>
-    );
-  }
+        <main className="min-h-screen font-sans">
+            <TimeWarning />
 
-  // Productive mode
-  if (mode === "productive") {
-    return (
-      <>
-        <TimeWarning />
-        <ProductiveView />
-      </>
+            {!mode && <EnergyGate />}
+            {mode === "productive" && <FocusCockpit />}
+            {mode === "burnout" && <BurnoutView />}
+        </main>
     );
-  }
-
-  // Burnout mode
-  return <BurnoutView />;
 }

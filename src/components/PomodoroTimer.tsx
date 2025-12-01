@@ -19,7 +19,7 @@ export default function PomodoroTimer() {
         } else if (timeLeft === 0) {
             setIsActive(false);
             toast.success("Timer finished! Take a break.");
-            new Audio("/notification.mp3").play().catch(() => { }); // Placeholder for sound
+            new Audio("/notification.mp3").play().catch(() => { });
         }
 
         return () => clearInterval(interval);
@@ -49,48 +49,46 @@ export default function PomodoroTimer() {
     };
 
     return (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
-            <div className="flex items-center gap-2 mb-4">
-                <Timer className="text-cyan-400" size={20} />
-                <h3 className="text-lg font-bold text-white">Adaptive Timer</h3>
+        <div className="bg-white rounded-[32px] p-6 shadow-soft-blue border border-slate-100 h-full flex flex-col justify-between relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <span className="text-6xl">🍅</span>
             </div>
 
-            <div className="flex justify-center gap-2 mb-6">
+            <div className="flex items-center gap-2 mb-4 z-10">
+                <div className="p-2 bg-red-50 rounded-xl">
+                    <Timer className="text-red-500" size={20} />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800">Pomodoro</h3>
+            </div>
+
+            <div className="flex justify-center gap-2 mb-6 z-10">
                 {(["focus", "short", "long"] as const).map((m) => (
                     <button
                         key={m}
                         onClick={() => changeMode(m)}
-                        className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${mode === m
-                                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                                : "text-slate-500 hover:text-slate-300"
+                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${mode === m
+                            ? "bg-blue-100 text-blue-700"
+                            : "text-slate-400 hover:bg-slate-50"
                             }`}
                     >
-                        {m === "focus" ? "Focus" : m === "short" ? "Short Break" : "Long Break"}
+                        {m === "focus" ? "Focus" : m === "short" ? "Short" : "Long"}
                     </button>
                 ))}
             </div>
 
-            <div className="text-center mb-6">
-                <div className="text-6xl font-mono font-bold text-white tracking-wider">
+            <div className="flex-1 flex flex-col items-center justify-center z-10">
+                <div className="text-6xl font-black font-mono text-slate-800 tracking-wider mb-4">
                     {formatTime(timeLeft)}
                 </div>
-            </div>
 
-            <div className="flex justify-center gap-4">
                 <button
                     onClick={toggleTimer}
-                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isActive
-                            ? "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                            : "bg-cyan-500 text-white hover:bg-cyan-400 shadow-lg shadow-cyan-500/20"
+                    className={`w-full py-3 rounded-2xl font-black transition-all duration-100 border-b-4 active:border-b-0 active:translate-y-1 ${isActive
+                            ? "bg-red-100 border-red-200 text-red-600 hover:bg-red-200"
+                            : "bg-blue-500 border-blue-700 text-white hover:bg-blue-400"
                         }`}
                 >
-                    {isActive ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
-                </button>
-                <button
-                    onClick={resetTimer}
-                    className="w-14 h-14 rounded-full bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 flex items-center justify-center transition-colors"
-                >
-                    <RotateCcw size={20} />
+                    {isActive ? "PAUSE" : "START FOCUS"}
                 </button>
             </div>
         </div>

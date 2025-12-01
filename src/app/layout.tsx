@@ -1,26 +1,32 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Nunito, Playfair_Display, Merriweather } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 
-const inter = Inter({ subsets: ["latin"] });
+const nunito = Nunito({ subsets: ["latin"], variable: "--font-nunito" });
+const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" });
+const merriweather = Merriweather({
+  weight: ["300", "400", "700", "900"],
+  subsets: ["latin"],
+  variable: "--font-merriweather"
+});
 
 export const metadata: Metadata = {
-    title: "Synapse",
-    description: "Adaptive productivity for your energy levels",
+  title: "Synapse",
+  description: "AI-Powered Energy Management",
 };
 
 export default function RootLayout({
-    children,
+  children,
 }: Readonly<{
-    children: React.ReactNode;
+  children: React.ReactNode;
 }>) {
-    return (
-        <html lang="en">
-            <body className={`${inter.className} bg-slate-950 text-slate-200 antialiased`}>
-                {children}
-                <Toaster position="top-center" richColors />
-            </body>
-        </html>
-    );
+  return (
+    <html lang="en">
+      <body className={`${nunito.className} ${playfair.variable} ${merriweather.variable}`}>
+        {children}
+        <Toaster position="top-center" />
+      </body>
+    </html>
+  );
 }

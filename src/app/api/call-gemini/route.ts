@@ -1,14 +1,22 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
+import callGemini, { Persona, ChatMessage } from "@/utils/callGemini";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function POST(req: Request) {
     try {
-        const { history, message, persona } = await req.json();
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const body: {
+            history?: ChatMessage[];
+            message: string;
+            persona?: Persona;
+            systemPrompt?: string;
+            modelName?: string;
+        } = await req.json();
 
-        const systemPrompt = `
+        const { history = [], message, persona, systemPrompt, modelName } = body;
+
+        const defaultSystemPrompt = `
       You are a sharp, energetic, and strategic "Sparring Partner" for high-performance work.
       The user's name is ${persona?.name || "Partner"}.
       Their personality type is "${persona?.type || "Unknown"}" (Traits: ${persona?.traits?.join(", ") || "Unknown"}).
@@ -23,23 +31,20 @@ export async function POST(req: Request) {
       Keep responses concise. No fluff.
     `;
 
-        const chat = model.startChat({
-            history: [
-                { role: "user", parts: [{ text: systemPrompt }] },
-                { role: "model", parts: [{ text: "Ready. Let's get to work." }] },
-                ...history.map((msg: any) => ({
-                    role: msg.role === "ai" ? "model" : "user",
-                    parts: [{ text: msg.content }],
-                })),
-            ],
+        const promptToUse = systemPrompt || defaultSystemPrompt;
+
+        const responseText = await callGemini({
+            history,
+            message,
+            persona,
+            systemPrompt: promptToUse,
+            modelName: modelName || "gemini-2.5-flash",
         });
 
-        const result = await chat.sendMessage(message);
-        const response = result.response.text();
-
-        return NextResponse.json({ message: response });
+        return NextResponse.json({ message: responseText });
     } catch (error) {
         console.error("Productive Chat Error:", error);
-        return NextResponse.json({ message: "Let's try that again." }, { status: 500 });
+        const message = error instanceof Error ? error.message : String(error);
+        return NextResponse.json({ message }, { status: 500 });
     }
 }

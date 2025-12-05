@@ -6,7 +6,7 @@ const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "
 export async function POST(req: Request) {
     try {
         const { history, message, persona } = await req.json();
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-latest" });
 
         const systemPrompt = `
       You are a calm, empathetic, and gentle AI companion for someone experiencing burnout.

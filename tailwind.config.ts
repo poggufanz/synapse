@@ -8,6 +8,14 @@ const config: Config = {
     ],
     theme: {
         extend: {
+            colors: {
+                "focus-blue": "#3B82F6",
+                "focus-orange": "#F97316",
+                "focus-white": "#FFFFFF",
+                "rest-cream": "#FDFBF7",
+                "rest-sage": "#8DA399",
+                "rest-sage-dark": "#4A5D53",
+            },
             fontFamily: {
                 sans: ["Nunito", "sans-serif"],
             },

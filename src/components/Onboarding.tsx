@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useEnergyStore } from "@/store/useEnergyStore";
-import { ArrowRight, Check, User } from "lucide-react";
+import { ArrowRight, Check, Brain, Zap, Clock, Sparkles, Lightbulb, Coffee, Battery, Target, Smile } from "lucide-react";
 import { toast } from "sonner";
+import LoadingScreen from "./LoadingScreen";
 
 const questions = [
     {
@@ -40,6 +41,7 @@ export default function Onboarding() {
     const [step, setStep] = useState(0); // 0: Name, 1-3: Questions
     const [name, setName] = useState("");
     const [answers, setAnswers] = useState<string[]>([]);
+    const [isFinishing, setIsFinishing] = useState(false);
 
     const handleNext = (answer?: string) => {
         if (step === 0 && !name.trim()) return;
@@ -52,10 +54,20 @@ export default function Onboarding() {
             setStep(step + 1);
         } else {
             // Finish
-            const traits = [...answers, answer!].filter(Boolean);
-            const type = determineType(traits);
-            setPersona({ name, type, traits });
+            setIsFinishing(true);
+            setTimeout(() => {
+                const traits = [...answers, answer!].filter(Boolean);
+                const type = determineType(traits);
+                setPersona({ name, type, traits });
+            }, 3000);
         }
+    };
+
+    const handleSkip = () => {
+        setIsFinishing(true);
+        setTimeout(() => {
+            setPersona({ name: "Friend", type: "Action Taker", traits: [] });
+        }, 2000);
     };
 
     const determineType = (traits: string[]) => {
@@ -64,9 +76,53 @@ export default function Onboarding() {
         return "Action Taker";
     };
 
+    if (isFinishing) {
+        return <LoadingScreen />;
+    }
+
     return (
-        <div className="min-h-screen bg-white flex items-center justify-center p-6 font-sans">
-            <div className="max-w-md w-full">
+        <div className="min-h-screen bg-white flex items-center justify-center p-6 font-sans relative overflow-hidden">
+            {/* Background Decorations */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+                {/* Grid Pattern */}
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+                
+                {/* Gradient Blobs */}
+                <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-100/40 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob" />
+                <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-purple-100/40 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000" />
+                <div className="absolute bottom-[-20%] left-[20%] w-96 h-96 bg-pink-100/40 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000" />
+
+                {/* Floating Productivity Icons */}
+                <div className="absolute top-[15%] left-[10%] opacity-20 animate-float">
+                    <Brain className="text-blue-400 w-12 h-12 rotate-12" />
+                </div>
+                <div className="absolute top-[20%] right-[15%] opacity-20 animate-float animation-delay-2000">
+                    <Zap className="text-yellow-400 w-10 h-10 -rotate-12" />
+                </div>
+                <div className="absolute bottom-[20%] left-[15%] opacity-20 animate-float animation-delay-4000">
+                    <Clock className="text-purple-400 w-14 h-14 rotate-6" />
+                </div>
+                <div className="absolute bottom-[30%] right-[10%] opacity-20 animate-float">
+                    <Lightbulb className="text-orange-400 w-12 h-12 -rotate-6" />
+                </div>
+                <div className="absolute top-[40%] left-[5%] opacity-15 animate-float animation-delay-1000">
+                    <Sparkles className="text-cyan-400 w-8 h-8" />
+                </div>
+                <div className="absolute bottom-[10%] left-[40%] opacity-15 animate-float animation-delay-3000">
+                    <Coffee className="text-amber-500 w-10 h-10 rotate-12" />
+                </div>
+                <div className="absolute top-[10%] right-[30%] opacity-15 animate-float animation-delay-1500">
+                    <Battery className="text-green-400 w-10 h-10 -rotate-45" />
+                </div>
+                <div className="absolute bottom-[40%] left-[5%] opacity-15 animate-float animation-delay-2500">
+                    <Target className="text-red-400 w-12 h-12" />
+                </div>
+                <div className="absolute top-[50%] right-[5%] opacity-15 animate-float animation-delay-500">
+                    <Smile className="text-pink-400 w-9 h-9 rotate-12" />
+                </div>
+            </div>
+
+            <div className="max-w-md w-full relative z-10">
                 {/* Progress Bar */}
                 <div className="flex gap-2 mb-12">
                     {[0, 1, 2, 3].map((i) => (
@@ -81,8 +137,19 @@ export default function Onboarding() {
                 <div className="text-center animate-fadeIn">
                     {step === 0 && (
                         <>
-                            <div className="w-20 h-20 bg-blue-100 rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-soft-blue">
-                                <User className="text-blue-600" size={40} />
+                            <div className="mb-8 relative w-48 h-48 mx-auto animate-float">
+                                {/* Logo Glow */}
+                                <div className="absolute inset-0 bg-blue-200/50 rounded-full blur-3xl transform scale-110 translate-y-4" />
+                                
+                                {/* Floating Particles */}
+                                <div className="absolute -top-4 -right-4 w-6 h-6 bg-yellow-300 rounded-full blur-sm animate-bounce delay-700 opacity-60" />
+                                <div className="absolute top-1/2 -left-8 w-4 h-4 bg-blue-400 rounded-full blur-sm animate-pulse delay-1000 opacity-60" />
+                                
+                                <img 
+                                    src="/images/logo.png" 
+                                    alt="Synapse Logo" 
+                                    className="w-full h-full object-contain relative z-10 drop-shadow-[0_0_25px_rgba(255,255,255,0.8)]"
+                                />
                             </div>
                             <h1 className="text-4xl font-black text-slate-800 mb-4 tracking-tight">Welcome to Synapse</h1>
                             <p className="text-slate-500 text-lg mb-8 font-medium">Let's get to know you. What should we call you?</p>
@@ -119,10 +186,7 @@ export default function Onboarding() {
 
                             {/* Skip Button */}
                             <button
-                                onClick={() => {
-                                    setPersona({ name: "Friend", type: "Action Taker", traits: [] });
-                                    setStep(1);
-                                }}
+                                onClick={handleSkip}
                                 className="w-full text-slate-400 hover:text-slate-600 font-medium py-2 transition-colors text-sm"
                             >
                                 Skip for Now
@@ -140,7 +204,7 @@ export default function Onboarding() {
                                     <button
                                         key={idx}
                                         onClick={() => handleNext(opt.trait)}
-                                        className="w-full bg-white border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50 text-slate-600 hover:text-blue-700 font-bold py-5 px-6 rounded-2xl transition-all duration-200 text-left flex items-center justify-between group"
+                                        className="w-full bg-white border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50 text-slate-600 hover:text-blue-700 font-bold py-5 px-6 rounded-2xl transition-all duration-200 text-left flex items-center justify-between group shadow-sm hover:shadow-md"
                                     >
                                         {opt.text}
                                         <Check className="opacity-0 group-hover:opacity-100 transition-opacity text-blue-500" />

@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Play, Pause, GripVertical, Trash2, CheckCircle2, Circle, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { Play, Pause, GripVertical, Trash2, CheckCircle2, Circle, ChevronDown, ChevronUp, Sparkles, BatteryWarning } from "lucide-react";
+
+import { useEnergyStore } from "@/store/useEnergyStore";
 import { toast } from "sonner";
+import NeumorphicTimer from "./NeumorphicTimer";
 
 interface Task {
     id: string;
@@ -14,31 +17,32 @@ interface Task {
 }
 
 export default function FocusCockpit() {
-    // Task management
+    const setMode = useEnergyStore((state) => state.setMode);
+    // Task management - AI Generated Timeline Mock
     const [tasks, setTasks] = useState<Task[]>([
         {
             id: "1",
-            title: "Read Chapter 1: Introduction to React",
-            duration: 25,
+            title: "Watch Intro Video",
+            duration: 5,
             isCompleted: false,
             isAIGenerated: true,
-            tags: ["Deep Work"],
+            tags: ["Learning"],
         },
         {
             id: "2",
-            title: "Take notes on key concepts",
-            duration: 15,
+            title: "Read Definition",
+            duration: 10,
             isCompleted: false,
             isAIGenerated: true,
-            tags: ["Shallow Work"],
+            tags: ["Reading"],
         },
         {
             id: "3",
-            title: "Review email inbox",
-            duration: 10,
+            title: "Solve 1 Practice Problem",
+            duration: 15,
             isCompleted: false,
-            isAIGenerated: false,
-            tags: ["Personal"],
+            isAIGenerated: true,
+            tags: ["Practice"],
         },
     ]);
     
@@ -52,10 +56,7 @@ export default function FocusCockpit() {
     
     // UI state
     const [inputValue, setInputValue] = useState("");
-    const [brainDumpOpen, setBrainDumpOpen] = useState(false);
-    const [brainDumpText, setBrainDumpText] = useState("");
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-    const [showCompleted, setShowCompleted] = useState(false);
     
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -117,21 +118,98 @@ export default function FocusCockpit() {
         new Audio("/notification.mp3").play().catch(() => {});
     };
 
-    const handleAddTask = () => {
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    const myKey = process.env.NEXT_PUBLIC_GOOGLE_AI_KEY;
+
+    const handleAddTask = async () => {
         if (inputValue.trim() === "") return;
 
-        const newTask: Task = {
-            id: Date.now().toString(),
-            title: inputValue.trim(),
-            duration: 25,
-            isCompleted: false,
-            isAIGenerated: false,
-            tags: [],
-        };
+        setIsGenerating(true);
+        const goal = inputValue.trim();
+        setInputValue(""); // Clear input immediately
 
-        setTasks([newTask, ...tasks]);
-        setInputValue("");
-        toast.success("Task added! 📝");
+        try {
+            const promptText = `
+                You are an expert productivity assistant.
+                Goal: Break down the user's objective: "${goal}" into 3-5 concrete micro-tasks.
+                
+                Rules based on psychology:
+                1. The first task MUST be a "Quick Win" (under 5 mins) to overcome inertia (Zeigarnik Effect).
+                2. Other tasks should fit into a Pomodoro cycle (max 25 mins).
+                3. Use simple, action-oriented language.
+                
+                Response MUST be a raw JSON Array following this exact schema:
+                [
+                  {
+                    "title": "Task name",
+                    "duration": "e.g., 5 min",
+                    "tag": "Quick Win" | "Deep Work" | "Learning"
+                  }
+                ]
+            `;
+
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${myKey}`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: promptText }]
+                        }]
+                    })
+                }
+            );
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || "API Request Failed");
+            }
+
+            const data = await response.json();
+            const text = data.candidates[0].content.parts[0].text;
+            
+            // Clean up markdown code blocks if present (since we can't enforce JSON mode in v1)
+            const cleanResponse = text.replace(/```json/g, "").replace(/```/g, "").trim();
+            
+            // Parse JSON response
+            const generatedTasks = JSON.parse(cleanResponse);
+
+            // Map to existing Task interface
+            const newTasks: Task[] = generatedTasks.map((t: any, index: number) => {
+                const durationNum = parseInt(t.duration) || 25;
+                return {
+                    id: Date.now().toString() + index,
+                    title: t.title,
+                    duration: durationNum,
+                    isCompleted: false,
+                    isAIGenerated: true,
+                    tags: t.tag ? [t.tag] : []
+                };
+            });
+
+            setTasks((prev) => [...newTasks, ...prev]);
+            toast.success("Mission generated! 🚀");
+
+        } catch (error: any) {
+            console.error("AI Error:", error);
+            // Fallback to manual add if AI fails
+            const newTask: Task = {
+                id: Date.now().toString(),
+                title: goal,
+                duration: 25,
+                isCompleted: false,
+                isAIGenerated: false,
+                tags: [],
+            };
+            setTasks((prev) => [newTask, ...prev]);
+            toast.error(`AI Error: ${error.message || "Failed to generate plan"}`);
+        } finally {
+            setIsGenerating(false);
+        }
     };
 
     const handleDeleteTask = (id: string) => {
@@ -173,32 +251,39 @@ export default function FocusCockpit() {
         setDraggedIndex(null);
     };
 
-    // Format time
-    const formatTime = (seconds: number) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    };
-
     // Calculate progress
     const progress = ((sessionDuration * 60 - timeLeft) / (sessionDuration * 60)) * 100;
 
-    const getTagColor = (tag: string) => {
-        const colors: Record<string, string> = {
-            "Deep Work": "bg-purple-100 text-purple-600 border-purple-200",
-            "Shallow Work": "bg-blue-100 text-blue-600 border-blue-200",
-            Personal: "bg-orange-100 text-orange-600 border-orange-200",
-            Health: "bg-green-100 text-green-600 border-green-200",
-            default: "bg-slate-100 text-slate-600 border-slate-200",
-        };
-        return colors[tag] || colors.default;
-    };
-
     return (
-        <div className="min-h-screen bg-slate-50 p-6">
+        <div className="min-h-screen bg-slate-50 p-6 font-sans">
             <div className="max-w-7xl mx-auto">
+                {/* Top Bar */}
+                <div className="flex justify-end mb-6">
+                    <button
+                        onClick={() => setMode("burnout")}
+                        className="group relative flex items-center gap-3 px-5 py-2.5 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm hover:shadow-md hover:border-red-200 transition-all duration-300 overflow-hidden"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-r from-red-50 to-orange-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="relative flex items-center gap-2">
+                            <span className="text-sm font-bold text-slate-600 group-hover:text-red-600 transition-colors">
+                                I'm Drained
+                            </span>
+                            <div className="relative">
+                                <BatteryWarning 
+                                    size={18} 
+                                    className="text-slate-400 group-hover:text-red-500 transition-colors group-hover:animate-pulse" 
+                                />
+                                <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-0 group-hover:opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500 opacity-0 group-hover:opacity-100 transition-opacity"></span>
+                                </span>
+                            </div>
+                        </div>
+                    </button>
+                </div>
+
                 {/* 2-Column Grid Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     
                     {/* ==================== LEFT COLUMN: FOCUS STATION ==================== */}
                     <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-6 lg:self-start">
@@ -208,83 +293,27 @@ export default function FocusCockpit() {
                             <div className="flex items-center justify-between mb-3">
                                 <div>
                                     <h2 className="text-2xl font-black text-slate-800">
-                                        Hey, Focus Warrior! 👋
+                                        Focus Mode
                                     </h2>
                                     <p className="text-sm text-slate-500 font-medium mt-1">
-                                        {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                                        Let's get things done.
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full border border-blue-100">
-                                <span className="text-xl">⚡</span>
-                                <span className="text-sm font-bold text-blue-700">Energy: High</span>
-                            </div>
                         </div>
 
-                        {/* Hero: Soft Pomodoro Timer */}
-                        <div className="bg-white rounded-[40px] p-8 shadow-xl border border-slate-100 text-center">
-                            {/* Circular Progress Ring */}
-                            <div className="relative inline-block mb-6">
-                                <svg width="220" height="220" className="transform -rotate-90">
-                                    {/* Background Circle */}
-                                    <circle
-                                        cx="110"
-                                        cy="110"
-                                        r="95"
-                                        fill="none"
-                                        stroke="#e2e8f0"
-                                        strokeWidth="14"
-                                    />
-                                    {/* Progress Circle */}
-                                    <circle
-                                        cx="110"
-                                        cy="110"
-                                        r="95"
-                                        fill="none"
-                                        stroke="url(#gradient)"
-                                        strokeWidth="14"
-                                        strokeLinecap="round"
-                                        strokeDasharray={`${2 * Math.PI * 95}`}
-                                        strokeDashoffset={`${2 * Math.PI * 95 * (1 - progress / 100)}`}
-                                        className="transition-all duration-1000 ease-out"
-                                    />
-                                    <defs>
-                                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                            <stop offset="0%" stopColor="#3b82f6" />
-                                            <stop offset="100%" stopColor="#8b5cf6" />
-                                        </linearGradient>
-                                    </defs>
-                                </svg>
-
-                                {/* Timer Display + Mascot */}
-                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <div className="mb-1 animate-pulse">
-                                        <span className="text-4xl">{isRunning ? "🦉" : "☕"}</span>
-                                    </div>
-                                    <div className="text-4xl font-black text-slate-800 tracking-tight">
-                                        {formatTime(timeLeft)}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Timer Controls */}
-                            <button
-                                onClick={handleToggleTimer}
-                                className="btn-clay btn-clay-blue w-full py-4 text-lg flex items-center justify-center gap-2"
-                            >
-                                {isRunning ? (
-                                    <>
-                                        <Pause size={20} fill="white" />
-                                        Pause Focus
-                                    </>
-                                ) : (
-                                    <>
-                                        <Play size={20} fill="white" />
-                                        Start Focus
-                                    </>
-                                )}
-                            </button>
-                        </div>
+                        {/* Hero: Neumorphic Timer */}
+                        <NeumorphicTimer
+                            timeLeft={timeLeft}
+                            isRunning={isRunning}
+                            onToggle={handleToggleTimer}
+                            duration={sessionDuration}
+                            setDuration={(d: number) => {
+                                setSessionDuration(d);
+                                if (!isRunning) setTimeLeft(d * 60);
+                            }}
+                            progress={progress}
+                        />
 
                         {/* Active Task Card */}
                         {activeTask ? (
@@ -317,245 +346,125 @@ export default function FocusCockpit() {
                                 </p>
                             </div>
                         )}
+                    </div>
 
-                        {/* Brain Dump (Collapsible) */}
-                        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-                            <button
-                                onClick={() => setBrainDumpOpen(!brainDumpOpen)}
-                                className="w-full p-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xl">🧠</span>
-                                    <span className="font-bold text-slate-800">Brain Dump</span>
+                    {/* ==================== RIGHT COLUMN: AI TASK TIMELINE ==================== */}
+                    <div className="lg:col-span-2 space-y-8">
+                        
+                        {/* AI Mission Input */}
+                        <div className="relative group">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 to-purple-400 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
+                            <div className="relative bg-white rounded-2xl shadow-[0_0_30px_rgba(59,130,246,0.1)] border border-blue-100 p-2 flex items-center gap-4 transition-all focus-within:ring-4 focus-within:ring-blue-50 focus-within:border-blue-300">
+                                <div className="pl-4 text-blue-500 animate-pulse">
+                                    <Sparkles size={24} />
                                 </div>
-                                {brainDumpOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                            </button>
-                            
-                            {brainDumpOpen && (
-                                <div className="p-4 pt-0 animate-slideDown">
-                                    <textarea
-                                        value={brainDumpText}
-                                        onChange={(e) => setBrainDumpText(e.target.value)}
-                                        placeholder="Type anything that's on your mind..."
-                                        className="w-full h-32 p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-blue-300 focus:outline-none text-slate-700 font-medium resize-none transition-all"
-                                    />
-                                    <p className="text-xs text-slate-400 mt-2 font-medium">
-                                        Clear your mind. Just type, no pressure.
+                                <input
+                                    type="text"
+                                    value={inputValue}
+                                    onChange={(e) => setInputValue(e.target.value)}
+                                    onKeyDown={(e) => e.key === "Enter" && handleAddTask()}
+                                    placeholder="What do you want to achieve? (e.g. Learn Calculus Limits)"
+                                    className="w-full py-4 text-lg font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none bg-transparent"
+                                />
+                                <button 
+                                    onClick={handleAddTask}
+                                    disabled={isGenerating}
+                                    className="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl transition-colors shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isGenerating ? (
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <ChevronDown size={20} className="-rotate-90" />
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Vertical Task Timeline */}
+                        <div className="relative pl-4">
+                            {/* Connecting Line */}
+                            <div className="absolute left-[27px] top-8 bottom-8 w-0.5 bg-blue-100 rounded-full"></div>
+
+                            <div className="space-y-6">
+                                {tasks.map((task, index) => (
+                                    <div 
+                                        key={task.id}
+                                        draggable
+                                        onDragStart={() => handleDragStart(index)}
+                                        onDragEnter={() => handleDragEnter(index)}
+                                        onDragEnd={handleDragEnd}
+                                        className={`relative pl-12 group transition-all duration-300 ${
+                                            draggedIndex === index ? "opacity-50 scale-95" : "opacity-100"
+                                        }`}
+                                    >
+                                        {/* Timeline Node */}
+                                        <div className={`absolute left-[19px] top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-[3px] border-white shadow-sm z-10 transition-colors ${
+                                            activeTask?.id === task.id ? "bg-blue-500 ring-4 ring-blue-100" : "bg-blue-200 group-hover:bg-blue-400"
+                                        }`}></div>
+
+                                        {/* Task Card */}
+                                        <div className={`bg-white rounded-xl p-5 shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all flex items-center justify-between gap-4 ${
+                                            activeTask?.id === task.id ? "ring-2 ring-blue-400 shadow-blue-100" : ""
+                                        }`}>
+                                            <div className="flex items-center gap-4 flex-1">
+                                                <div className="flex flex-col">
+                                                    <h4 className={`text-lg font-bold ${activeTask?.id === task.id ? "text-blue-700" : "text-slate-800"}`}>
+                                                        {task.title}
+                                                    </h4>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                                                            ⏱️ {task.duration} min
+                                                        </span>
+                                                        {task.isAIGenerated && (
+                                                            <span className="text-[10px] font-bold text-purple-500 bg-purple-50 px-2 py-1 rounded-md border border-purple-100 flex items-center gap-1">
+                                                                <Sparkles size={10} /> AI
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => handlePlayTask(task)}
+                                                    className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                                    title="Start Focus"
+                                                >
+                                                    <Play size={18} fill="currentColor" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleToggleTaskComplete(task.id)}
+                                                    className="p-2 text-slate-300 hover:text-green-500 transition-colors"
+                                                    title="Mark Done"
+                                                >
+                                                    <CheckCircle2 size={20} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteTask(task.id)}
+                                                    className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Empty State */}
+                            {tasks.length === 0 && (
+                                <div className="ml-12 bg-white rounded-2xl p-10 text-center border border-dashed border-slate-200">
+                                    <div className="text-4xl mb-4 opacity-30">✨</div>
+                                    <p className="text-slate-500 font-medium">
+                                        Enter a goal above to generate your mission timeline.
                                     </p>
                                 </div>
                             )}
                         </div>
                     </div>
-
-                    {/* ==================== RIGHT COLUMN: MASTER LIST ==================== */}
-                    <div className="lg:col-span-2 space-y-6">
-                        
-                        {/* Header */}
-                        <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-                            <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3 mb-2">
-                                <span className="text-4xl">📋</span>
-                                Master Task List
-                            </h2>
-                            <p className="text-slate-500 font-medium">
-                                AI missions + your own tasks, all in one place
-                            </p>
-                        </div>
-
-                        {/* Quick Add Input */}
-                        <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-                            <input
-                                type="text"
-                                value={inputValue}
-                                onChange={(e) => setInputValue(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && handleAddTask()}
-                                placeholder="Add a quick task..."
-                                className="w-full text-lg font-medium text-slate-800 placeholder:text-gray-400 focus:outline-none bg-transparent border-b-2 border-gray-100 focus:border-blue-300 pb-3 transition-colors duration-200"
-                            />
-                            <p className="text-xs text-gray-400 mt-3 font-medium">
-                                Press <kbd className="px-2 py-1 bg-gray-100 rounded text-gray-600 font-bold">Enter</kbd> to add
-                            </p>
-                        </div>
-
-                        {/* Unified Task List */}
-                        <div className="space-y-3">
-                            {tasks.map((task, index) => (
-                                <TaskRow
-                                    key={task.id}
-                                    task={task}
-                                    index={index}
-                                    isActive={activeTask?.id === task.id}
-                                    onPlay={() => handlePlayTask(task)}
-                                    onToggle={() => handleToggleTaskComplete(task.id)}
-                                    onDelete={() => handleDeleteTask(task.id)}
-                                    onDragStart={handleDragStart}
-                                    onDragEnter={handleDragEnter}
-                                    onDragEnd={handleDragEnd}
-                                    isDragging={draggedIndex === index}
-                                    getTagColor={getTagColor}
-                                />
-                            ))}
-                        </div>
-
-                        {/* Empty State */}
-                        {tasks.length === 0 && (
-                            <div className="bg-white rounded-[32px] p-12 text-center border border-gray-100 shadow-sm">
-                                <div className="mb-6 animate-bounce">
-                                    <span className="text-8xl">☕</span>
-                                </div>
-                                <h3 className="text-2xl font-black text-slate-800 mb-2">
-                                    All clear!
-                                </h3>
-                                <p className="text-slate-500 font-medium text-lg">
-                                    Add a task or generate missions with AI
-                                </p>
-                            </div>
-                        )}
-
-                        {/* Completed Tasks (Toggle) */}
-                        {completedTasks.length > 0 && (
-                            <div className="bg-green-50 rounded-3xl p-6 border border-green-100">
-                                <button
-                                    onClick={() => setShowCompleted(!showCompleted)}
-                                    className="w-full flex items-center justify-between mb-4"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <CheckCircle2 className="text-green-600" size={20} />
-                                        <span className="font-black text-green-700">
-                                            Completed ({completedTasks.length})
-                                        </span>
-                                    </div>
-                                    {showCompleted ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                                </button>
-                                
-                                {showCompleted && (
-                                    <div className="space-y-2 animate-slideDown">
-                                        {completedTasks.map((task) => (
-                                            <div
-                                                key={task.id}
-                                                className="flex items-center gap-3 p-3 bg-white rounded-xl"
-                                            >
-                                                <CheckCircle2 className="text-green-500 shrink-0" size={18} />
-                                                <p className="flex-1 text-slate-500 line-through font-medium">
-                                                    {task.title}
-                                                </p>
-                                                {task.isAIGenerated && (
-                                                    <Sparkles className="text-purple-400 shrink-0" size={14} />
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
                 </div>
             </div>
-        </div>
-    );
-}
-
-// ==================== TASK ROW COMPONENT ====================
-interface TaskRowProps {
-    task: Task;
-    index: number;
-    isActive: boolean;
-    onPlay: () => void;
-    onToggle: () => void;
-    onDelete: () => void;
-    onDragStart: (index: number) => void;
-    onDragEnter: (index: number) => void;
-    onDragEnd: () => void;
-    isDragging: boolean;
-    getTagColor: (tag: string) => string;
-}
-
-function TaskRow({
-    task,
-    index,
-    isActive,
-    onPlay,
-    onToggle,
-    onDelete,
-    onDragStart,
-    onDragEnter,
-    onDragEnd,
-    isDragging,
-    getTagColor,
-}: TaskRowProps) {
-    const [isHovered, setIsHovered] = useState(false);
-
-    return (
-        <div
-            draggable
-            onDragStart={() => onDragStart(index)}
-            onDragEnter={() => onDragEnter(index)}
-            onDragEnd={onDragEnd}
-            className={`group flex items-center gap-3 bg-white rounded-2xl p-4 transition-all duration-200 border shadow-sm ${
-                isActive
-                    ? "border-blue-300 shadow-blue-200"
-                    : "border-slate-100 hover:border-slate-200 hover:shadow-md"
-            } ${isDragging ? "opacity-50 scale-95" : "opacity-100"}`}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-        >
-            {/* Drag Handle */}
-            <div
-                className={`transition-opacity duration-200 cursor-grab active:cursor-grabbing ${
-                    isHovered ? "opacity-100" : "opacity-0"
-                }`}
-            >
-                <GripVertical className="text-gray-300" size={18} />
-            </div>
-
-            {/* Play Button */}
-            <button
-                onClick={onPlay}
-                className="shrink-0 p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-all hover:scale-110 active:scale-95"
-            >
-                <Play size={14} fill="white" />
-            </button>
-
-            {/* Checkbox */}
-            <button
-                onClick={onToggle}
-                className="shrink-0 text-gray-200 hover:text-green-500 transition-colors"
-            >
-                <Circle className="w-6 h-6" />
-            </button>
-
-            {/* Task Content */}
-            <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                    <p className="font-bold text-slate-800">{task.title}</p>
-                    {task.isAIGenerated && (
-                        <div className="flex items-center gap-1 px-2 py-0.5 bg-purple-50 rounded-full border border-purple-200">
-                            <Sparkles className="text-purple-500" size={12} />
-                            <span className="text-[10px] font-bold text-purple-600 uppercase">AI</span>
-                        </div>
-                    )}
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400 font-medium">⏱️ {task.duration} min</span>
-                    {task.tags && task.tags.map((tag) => (
-                        <span
-                            key={tag}
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getTagColor(tag)}`}
-                        >
-                            {tag}
-                        </span>
-                    ))}
-                </div>
-            </div>
-
-            {/* Delete Button */}
-            <button
-                onClick={onDelete}
-                className={`shrink-0 text-gray-300 hover:text-red-500 transition-all duration-200 ${
-                    isHovered ? "opacity-100 scale-100" : "opacity-0 scale-0"
-                }`}
-            >
-                <Trash2 size={18} />
-            </button>
         </div>
     );
 }

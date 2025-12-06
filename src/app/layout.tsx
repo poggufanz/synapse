@@ -14,6 +14,9 @@ const merriweather = Merriweather({
 export const metadata: Metadata = {
   title: "Synapse",
   description: "AI-Powered Energy Management",
+  icons: {
+    icon: "/images/LOGO.png",
+  },
 };
 
 export default function RootLayout({

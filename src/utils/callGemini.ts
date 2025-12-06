@@ -18,7 +18,7 @@ export async function callGemini({
     message,
     persona,
     systemPrompt,
-    modelName
+    modelName,
 }: {
     history?: ChatMessage[];
     message: string;
@@ -48,8 +48,33 @@ Keep responses concise and appropriate to persona.
         ],
     });
 
-    const result = await chat.sendMessage(message);
-    return result.response.text();
+    const sendWithRetry = async (): Promise<string> => {
+        const maxAttempts = 3;
+        let attempt = 0;
+        let delayMs = 500;
+
+        while (attempt < maxAttempts) {
+            try {
+                const result = await chat.sendMessage(message);
+                return result.response.text();
+            } catch (error: any) {
+                const status = error?.status ?? error?.response?.status;
+                const isOverloaded = status === 503;
+                attempt += 1;
+
+                if (!isOverloaded || attempt >= maxAttempts) {
+                    throw error;
+                }
+
+                await new Promise((resolve) => setTimeout(resolve, delayMs));
+                delayMs *= 2; // exponential backoff
+            }
+        }
+
+        throw new Error("Failed to get Gemini response after retries.");
+    };
+
+    return sendWithRetry();
 }
 
 export default callGemini;

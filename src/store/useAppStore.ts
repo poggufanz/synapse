@@ -6,8 +6,12 @@ export type EnergyMode = "productive" | "burnout" | null;
 
 export interface Task {
     id: string;
-    title: string;
-    duration: number; // minutes
+    title: string;           // Display name (can be same as action)
+    action?: string;         // Action verb for task
+    summary?: string;        // Task details
+    duration: number;        // minutes
+    energy?: "Deep Work" | "Shallow Work" | "Recovery";
+    source?: string;         // Where task came from
     isCompleted: boolean;
     isAIGenerated?: boolean;
     tags?: string[];

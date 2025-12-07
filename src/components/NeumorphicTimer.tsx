@@ -19,7 +19,7 @@ export default function NeumorphicTimer({
     setDuration,
     progress,
 }: NeumorphicTimerProps) {
-    
+
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
@@ -37,7 +37,7 @@ export default function NeumorphicTimer({
                 <div className="absolute inset-0 rounded-full bg-[#F0F0F3] shadow-[-10px_-10px_20px_#FFFFFF,10px_10px_20px_#AEAEC040] flex items-center justify-center">
                     {/* Inner Pressed Ring (Track) */}
                     <div className="w-52 h-52 rounded-full bg-[#F0F0F3] shadow-[inset_-5px_-5px_15px_#FFFFFF,inset_5px_5px_15px_#AEAEC040] flex items-center justify-center relative">
-                        
+
                         {/* Progress SVG */}
                         <svg className="absolute inset-0 w-full h-full transform -rotate-90 p-4" viewBox="0 0 220 220">
                             <circle
@@ -81,21 +81,19 @@ export default function NeumorphicTimer({
                 <div className="flex justify-center gap-4">
                     <button
                         onClick={() => setDuration(25)}
-                        className={`px-6 py-3 rounded-full text-sm font-bold transition-all duration-300 ${
-                            duration === 25
+                        className={`px-6 py-3 rounded-full text-sm font-bold transition-all duration-300 ${duration === 25
                                 ? "bg-[#F0F0F3] text-[#1E73FF] shadow-[-5px_-5px_10px_#FFFFFF,5px_5px_10px_#AEAEC040,inset_-2px_-2px_5px_#FFFFFF,inset_2px_2px_5px_#AEAEC020]"
                                 : "bg-[#F0F0F3] text-slate-400 shadow-[-5px_-5px_10px_#FFFFFF,5px_5px_10px_#AEAEC040] hover:text-slate-600"
-                        }`}
+                            }`}
                     >
                         Sprint 25m
                     </button>
                     <button
                         onClick={() => setDuration(90)}
-                        className={`px-6 py-3 rounded-full text-sm font-bold transition-all duration-300 ${
-                            duration === 90
+                        className={`px-6 py-3 rounded-full text-sm font-bold transition-all duration-300 ${duration === 90
                                 ? "bg-[#F0F0F3] text-[#1E73FF] shadow-[-5px_-5px_10px_#FFFFFF,5px_5px_10px_#AEAEC040,inset_-2px_-2px_5px_#FFFFFF,inset_2px_2px_5px_#AEAEC020]"
                                 : "bg-[#F0F0F3] text-slate-400 shadow-[-5px_-5px_10px_#FFFFFF,5px_5px_10px_#AEAEC040] hover:text-slate-600"
-                        }`}
+                            }`}
                     >
                         Deep Dive 90m
                     </button>
@@ -104,11 +102,10 @@ export default function NeumorphicTimer({
                 {/* Main Action Button */}
                 <button
                     onClick={onToggle}
-                    className={`w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all duration-300 ${
-                        isRunning
-                            ? "bg-[#F0F0F3] text-[#1E73FF] shadow-[inset_-5px_-5px_10px_#FFFFFF,inset_5px_5px_10px_#AEAEC040]"
-                            : "bg-[#1E73FF] text-white shadow-[-5px_-5px_15px_#FFFFFF,5px_5px_15px_#AEAEC060] hover:bg-[#1664E0] active:scale-[0.98]"
-                    }`}
+                    className={`w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all duration-300 ${isRunning
+                            ? "bg-[#F0F0F3] text-[#1E73FF] shadow-[inset_-5px_-5px_10px_#FFFFFF,inset_5px_5px_10px_#AEAEC040] border-b-0"
+                            : "bg-blue-600 text-white shadow-xl shadow-blue-200 border-b-4 border-blue-800 hover:border-b-0 hover:translate-y-1 hover:bg-blue-500"
+                        }`}
                 >
                     {isRunning ? (
                         <>

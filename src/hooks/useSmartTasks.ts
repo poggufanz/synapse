@@ -6,17 +6,19 @@ export const useSmartTasks = () => {
 
     if (moodState === "anxious") {
         return tasks.filter((task) => {
-            // Hide "Deep Work"
+            // Hide "Deep Work" (from tags or energy field)
             if (task.tags?.includes("Deep Work")) return false;
+            if (task.energy === "Deep Work") return false;
 
             // Hide Low Priority (often clutter)
             if (task.priority === "low") return false;
 
             // Show Quick Wins or Short Tasks
             const isQuickWin = task.tags?.includes("Quick Win");
+            const isRecovery = task.energy === "Recovery" || task.energy === "Shallow Work";
             const isShort = task.duration <= 25;
 
-            return isQuickWin || isShort;
+            return isQuickWin || isRecovery || isShort;
         });
     }
 

@@ -1,129 +1,673 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useEnergyStore } from "@/store/useEnergyStore";
-import { ArrowLeft, Wind, Heart, Smile, Frown, Meh, BookOpen } from "lucide-react";
+import { ArrowLeft, Volume2, VolumeX, Moon, Sun, Send } from "lucide-react";
+
+// Chat message type
+interface ChatMessage {
+    role: "user" | "ai";
+    content: string;
+}
+
+// Default quick reply pills
+const DEFAULT_PILLS = [
+    { text: "I'm overwhelmed", emoji: "😰" },
+    { text: "Help me breathe", emoji: "🫁" },
+    { text: "So tired", emoji: "😴" },
+    { text: "Need to vent", emoji: "💭" },
+];
+
+// Mood options
+const MOOD_OPTIONS = [
+    { icon: "😫", label: "Stressed" },
+    { icon: "😰", label: "Anxious" },
+    { icon: "😐", label: "Neutral" },
+    { icon: "😌", label: "Calm" },
+    { icon: "🧘", label: "Zen" },
+];
+
+// Ambient sound options
+const SOUND_OPTIONS = [
+    { id: "rain", label: "Rain", icon: "🌧️", url: "https://cdn.pixabay.com/audio/2022/05/13/audio_257112181b.mp3" },
+    { id: "whitenoise", label: "White Noise", icon: "📻", url: "https://cdn.pixabay.com/audio/2022/08/02/audio_884fe92c21.mp3" },
+    { id: "ocean", label: "Ocean Waves", icon: "🌊", url: "https://cdn.pixabay.com/audio/2022/06/07/audio_b9bd4170e4.mp3" },
+];
+
+// localStorage keys
+const CHAT_HISTORY_KEY = "synapse-burnout-chat-history";
+const THEME_KEY = "synapse-burnout-theme";
+const MOOD_KEY = "synapse-burnout-mood";
+const SOUND_KEY = "synapse-burnout-sound";
 
 export default function BurnoutView() {
     const setMode = useEnergyStore((state) => state.setMode);
-    const [breathingPhase, setBreathingPhase] = useState<"inhale" | "hold" | "exhale">("inhale");
-    const [mood, setMood] = useState<string | null>(null);
-    const [journalEntry, setJournalEntry] = useState("");
+    const persona = useEnergyStore((state) => state.persona);
 
-    // Breathing Animation Loop
+    // Theme state (default: dark)
+    const [isDarkMode, setIsDarkMode] = useState(true);
+
+    // Mood state
+    const [mood, setMood] = useState<string | null>(null);
+
+    // Breathing state
+    const [breathingPhase, setBreathingPhase] = useState<"inhale" | "hold" | "exhale">("inhale");
+    const [isBreathingActive, setIsBreathingActive] = useState(false);
+
+    // Hold-to-activate state (3 second hold)
+    const [isHolding, setIsHolding] = useState(false);
+    const [holdProgress, setHoldProgress] = useState(0); // 0 to 100
+    const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const holdStartTimeRef = useRef<number>(0);
+    const HOLD_DURATION = 3000; // 3 seconds to activate
+
+    // Chat State
+    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+    const [chatInput, setChatInput] = useState("");
+    const [isChatLoading, setIsChatLoading] = useState(false);
+    const chatEndRef = useRef<HTMLDivElement>(null);
+
+    // Sound State
+    const [isSoundOn, setIsSoundOn] = useState(false);
+    const [selectedSound, setSelectedSound] = useState("rain");
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    // Load theme from localStorage
     useEffect(() => {
+        try {
+            const savedTheme = localStorage.getItem(THEME_KEY);
+            if (savedTheme !== null) {
+                setIsDarkMode(savedTheme === "dark");
+            }
+        } catch (error) {
+            console.error("Failed to load theme:", error);
+        }
+    }, []);
+
+    // Save theme to localStorage
+    useEffect(() => {
+        try {
+            localStorage.setItem(THEME_KEY, isDarkMode ? "dark" : "light");
+        } catch (error) {
+            console.error("Failed to save theme:", error);
+        }
+    }, [isDarkMode]);
+
+    // Load mood from localStorage
+    useEffect(() => {
+        try {
+            const savedMood = localStorage.getItem(MOOD_KEY);
+            if (savedMood) {
+                setMood(savedMood);
+            }
+        } catch (error) {
+            console.error("Failed to load mood:", error);
+        }
+    }, []);
+
+    // Save mood to localStorage
+    useEffect(() => {
+        if (mood) {
+            try {
+                localStorage.setItem(MOOD_KEY, mood);
+            } catch (error) {
+                console.error("Failed to save mood:", error);
+            }
+        }
+    }, [mood]);
+
+    // Breathing Animation Loop - only runs when activated
+    useEffect(() => {
+        if (!isBreathingActive) return;
+
         const interval = setInterval(() => {
             setBreathingPhase((prev) => {
                 if (prev === "inhale") return "hold";
                 if (prev === "hold") return "exhale";
                 return "inhale";
             });
-        }, 4000); // 4s cycle for simplicity (4-4-4 or similar)
+        }, 4000);
         return () => clearInterval(interval);
+    }, [isBreathingActive]);
+
+    // Hold-to-activate handlers
+    const handleHoldStart = () => {
+        setIsHolding(true);
+        holdStartTimeRef.current = Date.now();
+        setHoldProgress(0);
+
+        // Update progress every 30ms
+        holdTimerRef.current = setInterval(() => {
+            const elapsed = Date.now() - holdStartTimeRef.current;
+            const progress = Math.min((elapsed / HOLD_DURATION) * 100, 100);
+            setHoldProgress(progress);
+
+            // Activate breathing when hold completes
+            if (elapsed >= HOLD_DURATION) {
+                setIsBreathingActive(true);
+                setIsHolding(false);
+                setHoldProgress(0);
+                if (holdTimerRef.current) {
+                    clearInterval(holdTimerRef.current);
+                }
+            }
+        }, 30);
+    };
+
+    const handleHoldEnd = () => {
+        setIsHolding(false);
+        setHoldProgress(0);
+        if (holdTimerRef.current) {
+            clearInterval(holdTimerRef.current);
+        }
+    };
+
+    // Cleanup hold timer on unmount
+    useEffect(() => {
+        return () => {
+            if (holdTimerRef.current) {
+                clearInterval(holdTimerRef.current);
+            }
+        };
     }, []);
 
+    // Load selected sound from localStorage
+    useEffect(() => {
+        try {
+            const savedSound = localStorage.getItem(SOUND_KEY);
+            if (savedSound && SOUND_OPTIONS.find(s => s.id === savedSound)) {
+                setSelectedSound(savedSound);
+            }
+        } catch (error) {
+            console.error("Failed to load sound preference:", error);
+        }
+    }, []);
+
+    // Initialize audio with selected sound
+    useEffect(() => {
+        const soundOption = SOUND_OPTIONS.find(s => s.id === selectedSound);
+        if (!soundOption) return;
+
+        // Pause current audio if playing
+        if (audioRef.current) {
+            audioRef.current.pause();
+        }
+
+        audioRef.current = new Audio(soundOption.url);
+        audioRef.current.loop = true;
+        audioRef.current.volume = 0.3;
+
+        // Resume playing if sound was on
+        if (isSoundOn) {
+            audioRef.current.play().catch(() => { });
+        }
+
+        // Save preference
+        try {
+            localStorage.setItem(SOUND_KEY, selectedSound);
+        } catch (error) {
+            console.error("Failed to save sound preference:", error);
+        }
+
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+        };
+    }, [selectedSound]);
+
+    // Load chat history
+    useEffect(() => {
+        try {
+            const savedHistory = localStorage.getItem(CHAT_HISTORY_KEY);
+            if (savedHistory) {
+                const parsed = JSON.parse(savedHistory);
+                if (Array.isArray(parsed)) {
+                    setChatMessages(parsed);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to load chat history:", error);
+        }
+    }, []);
+
+    // Save chat history
+    useEffect(() => {
+        if (chatMessages.length > 0) {
+            try {
+                localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(chatMessages));
+            } catch (error) {
+                console.error("Failed to save chat history:", error);
+            }
+        }
+    }, [chatMessages]);
+
+    // Scroll to bottom
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [chatMessages]);
+
+    const toggleSound = () => {
+        if (!audioRef.current) return;
+        if (isSoundOn) {
+            audioRef.current.pause();
+        } else {
+            audioRef.current.play().catch(() => { });
+        }
+        setIsSoundOn(!isSoundOn);
+    };
+
+    const handleSoundSelect = (soundId: string) => {
+        setSelectedSound(soundId);
+    };
+
+    const toggleTheme = () => {
+        setIsDarkMode(!isDarkMode);
+    };
+
+    const sendMessage = async (message: string) => {
+        if (!message.trim()) return;
+
+        const userMsg: ChatMessage = { role: "user", content: message };
+        setChatMessages((prev) => [...prev, userMsg]);
+        setChatInput("");
+        setIsChatLoading(true);
+
+        try {
+            const response = await fetch("/api/chat-burnout", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    history: chatMessages,
+                    message: userMsg.content,
+                    persona,
+                }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setChatMessages((prev) => [...prev, { role: "ai", content: data.message }]);
+            }
+        } catch (error) {
+            console.error("Chat error:", error);
+        } finally {
+            setIsChatLoading(false);
+        }
+    };
+
+    const userName = persona?.name || "friend";
+
+    // Theme-aware classes
+    const theme = {
+        // Main background
+        bg: isDarkMode
+            ? "from-[#0f1a2e] via-[#1a2642] to-[#2a1f4e]"
+            : "from-orange-50 via-[#F5F0E6] to-amber-100",
+        // Text colors
+        text: isDarkMode ? "text-white" : "text-slate-800",
+        textMuted: isDarkMode ? "text-white/60" : "text-slate-500",
+        textSubtle: isDarkMode ? "text-white/40" : "text-slate-400",
+        // Blob colors
+        blob1: isDarkMode ? "bg-indigo-500/20" : "bg-orange-200/30",
+        blob2: isDarkMode ? "bg-purple-500/20" : "bg-amber-200/30",
+        blob3: isDarkMode ? "bg-blue-500/15" : "bg-orange-100/40",
+        // UI elements
+        cardBg: isDarkMode ? "bg-white/10 border-white/10" : "bg-white/70 border-orange-200/50",
+        buttonBg: isDarkMode ? "bg-white/10 border-white/10 hover:bg-white/20" : "bg-white/60 border-orange-200/50 hover:bg-white/80",
+        buttonText: isDarkMode ? "text-white/70 hover:text-white" : "text-slate-600 hover:text-slate-800",
+        // Breathing sphere
+        sphereGradient: isDarkMode ? "from-[#4fd1c5] to-[#2dd4bf]" : "from-orange-400 to-amber-500",
+        sphereGlow: isDarkMode ? "rgba(79,209,197,0.4)" : "rgba(251,146,60,0.4)",
+        sphereGlowStrong: isDarkMode ? "rgba(79,209,197,0.6)" : "rgba(251,146,60,0.6)",
+        sphereGlowWeak: isDarkMode ? "rgba(79,209,197,0.2)" : "rgba(251,146,60,0.2)",
+        sphereText: isDarkMode ? "text-[#0f1a2e]" : "text-white",
+        sphereBorder: isDarkMode ? "border-[#4fd1c5]/30" : "border-orange-300/30",
+        sphereBorderWeak: isDarkMode ? "border-[#4fd1c5]/20" : "border-orange-200/20",
+        // Chat
+        userBubble: isDarkMode ? "bg-[#2dd4bf] text-[#0f1a2e]" : "bg-orange-500 text-white shadow-lg shadow-orange-200",
+        aiBubble: isDarkMode ? "bg-white/10 border-white/10 text-white/90" : "bg-white/70 border-orange-100 text-slate-700",
+        loadingDot: isDarkMode ? "bg-[#4fd1c5]" : "bg-orange-400",
+        pillBg: isDarkMode ? "bg-white/10 border-white/10" : "bg-white/70 border-orange-200/50",
+        pillText: isDarkMode ? "text-white/70 hover:text-white hover:bg-white/20" : "text-slate-600 hover:text-slate-800 hover:bg-white",
+        inputBg: isDarkMode ? "bg-white/10 border-white/10 focus:border-[#4fd1c5]/50 text-white placeholder-white/30" : "bg-white/70 border-orange-200/50 focus:border-orange-400 text-slate-700 placeholder-slate-400",
+        sendBtn: isDarkMode ? "bg-[#2dd4bf] hover:bg-[#4fd1c5] text-[#0f1a2e]" : "bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-200",
+        // Decorative
+        gridOpacity: "opacity-[0.03]",
+        emojiOpacity: isDarkMode ? "opacity-[0.15]" : "opacity-10",
+        geometricBorder: isDarkMode ? "border-indigo-300/20" : "border-orange-300/20",
+        // Mood card
+        moodCardBg: isDarkMode ? "bg-white/10 border-white/10" : "bg-white/70 border-orange-200/50",
+        moodSelected: isDarkMode ? "ring-2 ring-[#4fd1c5]" : "ring-2 ring-orange-400",
+    };
+
     return (
-        <div className="min-h-screen bg-[#2A4B46] text-[#E0F2F1] font-serif relative overflow-hidden transition-colors duration-1000">
-            {/* Ambient Background Glows */}
-            <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-[#4DB6AC]/10 rounded-full blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-[#80CBC4]/10 rounded-full blur-[120px] pointer-events-none" />
+        <div className={`h-screen bg-gradient-to-br ${theme.bg} ${theme.text} font-sans relative overflow-hidden transition-all duration-500`}>
+            {/* Ambient Background Effects */}
+            <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+                {/* Blobs */}
+                <div className={`absolute top-[10%] right-[-10%] w-96 h-96 ${theme.blob1} rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob`} />
+                <div className={`absolute bottom-[-10%] left-[-10%] w-56 h-56 ${theme.blob2} rounded-full mix-blend-multiply filter blur-2xl opacity-60 animate-blob animation-delay-2000`} />
+                <div className={`absolute top-[40%] left-[10%] w-64 h-64 ${theme.blob3} rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-4000`} />
 
-            {/* Exit Button */}
-            <button
-                onClick={() => setMode(null)}
-                className="absolute top-8 right-8 text-[#E0F2F1]/60 hover:text-white transition-colors z-50 flex items-center gap-2 group"
-            >
-                <span className="text-sm font-sans tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">EXIT REST MODE</span>
-                <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
-            </button>
+                {/* Grid Pattern */}
+                <div className={`absolute inset-0 ${theme.gridOpacity}`} style={{
+                    backgroundImage: `linear-gradient(${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} 1px, transparent 1px), linear-gradient(90deg, ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} 1px, transparent 1px)`,
+                    backgroundSize: '40px 40px'
+                }} />
 
-            <div className="container mx-auto min-h-screen flex flex-col lg:flex-row items-center justify-center gap-12 p-8 relative z-10">
-                
-                {/* CENTER LEFT: Breathing Sphere */}
-                <div className="flex-1 flex flex-col items-center justify-center">
-                    <div className="relative w-80 h-80 flex items-center justify-center">
-                        {/* Outer Glow Rings */}
-                        <div className={`absolute inset-0 rounded-full border-2 border-[#80CBC4]/20 transition-all duration-[4000ms] ease-in-out ${
-                            breathingPhase === "inhale" ? "scale-150 opacity-0" : "scale-100 opacity-50"
-                        }`} />
-                        <div className={`absolute inset-0 rounded-full border border-[#80CBC4]/10 transition-all duration-[4000ms] ease-in-out delay-75 ${
-                            breathingPhase === "inhale" ? "scale-125 opacity-0" : "scale-90 opacity-60"
-                        }`} />
+                {/* Floating Decorative Emojis */}
+                <div className={`absolute top-20 right-16 ${theme.emojiOpacity} animate-float`}>
+                    <span className="text-6xl">🔋</span>
+                </div>
+                <div className={`absolute bottom-32 left-16 ${theme.emojiOpacity} animate-float animation-delay-2000`}>
+                    <span className="text-5xl">☕</span>
+                </div>
+                <div className={`absolute top-[30%] left-[8%] ${theme.emojiOpacity} animate-float animation-delay-1000`}>
+                    <span className="text-4xl">🌙</span>
+                </div>
+                <div className={`absolute bottom-[20%] right-[12%] ${theme.emojiOpacity} animate-float animation-delay-3000`}>
+                    <span className="text-5xl">☁️</span>
+                </div>
+                <div className={`absolute top-[50%] right-[5%] ${theme.emojiOpacity} animate-pulse`}>
+                    <span className="text-4xl">😌</span>
+                </div>
+                <div className={`absolute bottom-[40%] left-[3%] ${theme.emojiOpacity} animate-float animation-delay-1500`}>
+                    <span className="text-3xl">🧘</span>
+                </div>
 
-                        {/* The Sphere */}
-                        <div className={`w-48 h-48 rounded-full bg-gradient-to-br from-[#B2DFDB] to-[#4DB6AC] shadow-[0_0_60px_rgba(77,182,172,0.4)] flex items-center justify-center transition-all duration-[4000ms] ease-in-out ${
-                            breathingPhase === "inhale" ? "scale-110 shadow-[0_0_100px_rgba(77,182,172,0.6)]" : 
-                            breathingPhase === "exhale" ? "scale-90 shadow-[0_0_40px_rgba(77,182,172,0.2)]" : "scale-100"
-                        }`}>
-                            <span className="text-[#004D40] font-medium tracking-widest text-lg animate-pulse">
-                                {breathingPhase.toUpperCase()}
+                {/* Geometric Accents */}
+                <div className={`absolute top-[15%] left-[15%] w-12 h-12 border-4 ${theme.geometricBorder} rounded-xl rotate-45 animate-float animation-delay-2000`} />
+                <div className={`absolute bottom-[25%] right-[20%] w-8 h-8 border-2 ${theme.geometricBorder} rounded-full animate-float`} />
+            </div>
+
+            {/* Top Left: Ambient Sounds Card */}
+            <div className="absolute top-4 left-4 z-50">
+                <div className={`backdrop-blur-sm border rounded-2xl p-3 shadow-lg ${theme.moodCardBg} transition-all duration-300 w-48`}>
+                    <div className="flex items-center justify-between mb-2">
+                        <span className={`text-xs font-medium ${theme.textMuted} uppercase tracking-wider`}>🎵 Ambient Sounds</span>
+                    </div>
+                    <div className="flex justify-between gap-1 mb-2">
+                        {SOUND_OPTIONS.map((sound) => (
+                            <button
+                                key={sound.id}
+                                onClick={() => handleSoundSelect(sound.id)}
+                                className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg transition-all text-xs ${selectedSound === sound.id
+                                    ? `${theme.moodSelected} scale-105`
+                                    : `${theme.pillBg} hover:scale-105`
+                                    }`}
+                            >
+                                <span className="text-base">{sound.icon}</span>
+                                <span className={`text-[10px] ${selectedSound === sound.id ? theme.text : theme.textMuted}`}>
+                                    {sound.label.split(' ')[0]}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                    <button
+                        onClick={toggleSound}
+                        className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl transition-all text-xs ${isSoundOn
+                            ? theme.sendBtn
+                            : `${theme.pillBg} ${theme.pillText}`
+                            }`}
+                    >
+                        {isSoundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                        <span>{isSoundOn ? "Playing" : "Play Sound"}</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Top Right: Exit Button */}
+            <div className="absolute top-6 right-6 z-50">
+                <button
+                    onClick={() => setMode(null)}
+                    className={`flex items-center gap-2 ${theme.textMuted} hover:${theme.text} transition-colors text-sm`}
+                >
+                    <ArrowLeft size={16} />
+                    <span>exit</span>
+                </button>
+            </div>
+
+            {/* Bottom Right: Theme Toggle */}
+            <div className="absolute bottom-6 right-6 z-50">
+                <button
+                    onClick={toggleTheme}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-sm border ${theme.buttonBg} ${theme.buttonText} text-sm shadow-lg cursor-pointer select-none
+                        hover:scale-105 hover:shadow-xl
+                        active:scale-90
+                    `}
+                >
+                    {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+                    <span>{isDarkMode ? "Light" : "Dark"}</span>
+                </button>
+            </div>
+
+            {/* How is your heart - Mood Card (Right Side) */}
+            <div className="absolute right-6 top-1/2 -translate-y-1/2 z-40">
+                <div className={`backdrop-blur-sm border rounded-2xl p-4 shadow-lg ${theme.moodCardBg} transition-all duration-300`}>
+                    <h3 className={`text-sm font-medium text-center mb-3 ${theme.textMuted} italic`}>
+                        How is your heart?
+                    </h3>
+                    <div className="flex flex-col gap-2">
+                        {MOOD_OPTIONS.map((option) => (
+                            <button
+                                key={option.label}
+                                onClick={() => setMood(option.label)}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-full cursor-pointer select-none ${mood === option.label
+                                    ? `${theme.moodSelected} scale-105`
+                                    : `${theme.pillBg} hover:scale-105`
+                                    }
+                                    active:scale-90
+                                `}
+                            >
+                                <span className="text-xl">{option.icon}</span>
+                                <span className={`text-xs font-medium ${mood === option.label ? theme.text : theme.textMuted}`}>
+                                    {option.label}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Main Content */}
+            <div className="h-full w-full flex flex-col items-center pt-20 pb-8 px-4 relative z-10">
+
+                {/* Breathing Sphere with Hold-to-Activate */}
+                <div className="relative flex flex-col items-center justify-center mb-6">
+                    {/* Hold-to-Breathe Container */}
+                    <div
+                        className="relative flex items-center justify-center cursor-pointer select-none"
+                        onMouseDown={!isBreathingActive ? handleHoldStart : undefined}
+                        onMouseUp={!isBreathingActive ? handleHoldEnd : undefined}
+                        onMouseLeave={!isBreathingActive ? handleHoldEnd : undefined}
+                        onTouchStart={!isBreathingActive ? handleHoldStart : undefined}
+                        onTouchEnd={!isBreathingActive ? handleHoldEnd : undefined}
+                    >
+                        {/* Progress Ring (visible when not activated) */}
+                        {!isBreathingActive && (
+                            <svg className="absolute w-36 h-36 -rotate-90" viewBox="0 0 100 100">
+                                {/* Background circle */}
+                                <circle
+                                    cx="50"
+                                    cy="50"
+                                    r="45"
+                                    fill="none"
+                                    stroke={isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}
+                                    strokeWidth="4"
+                                />
+                                {/* Progress circle */}
+                                <circle
+                                    cx="50"
+                                    cy="50"
+                                    r="45"
+                                    fill="none"
+                                    stroke={isDarkMode ? "#4fd1c5" : "#f97316"}
+                                    strokeWidth="4"
+                                    strokeLinecap="round"
+                                    strokeDasharray={`${2 * Math.PI * 45}`}
+                                    strokeDashoffset={`${2 * Math.PI * 45 * (1 - holdProgress / 100)}`}
+                                    className="transition-all duration-75 ease-out"
+                                />
+                            </svg>
+                        )}
+
+                        {/* Outer glow rings (visible when breathing is active) */}
+                        {isBreathingActive && (
+                            <>
+                                <div className={`absolute w-32 h-32 rounded-full border ${theme.sphereBorder} transition-all duration-[4000ms] ease-in-out ${breathingPhase === "inhale" ? "scale-150 opacity-0" : "scale-100 opacity-50"
+                                    }`} />
+                                <div className={`absolute w-28 h-28 rounded-full border ${theme.sphereBorderWeak} transition-all duration-[4000ms] ease-in-out ${breathingPhase === "inhale" ? "scale-125 opacity-0" : "scale-90 opacity-30"
+                                    }`} />
+                            </>
+                        )}
+
+                        {/* Main sphere */}
+                        <div
+                            className={`w-24 h-24 rounded-full bg-gradient-to-br ${theme.sphereGradient} flex items-center justify-center transition-all ease-in-out ${isBreathingActive
+                                ? `duration-[4000ms] ${breathingPhase === "inhale" ? "scale-110" : breathingPhase === "exhale" ? "scale-90" : "scale-100"}`
+                                : `duration-150 ${isHolding ? "scale-95" : "scale-100 hover:scale-105"}`
+                                }`}
+                            style={{
+                                boxShadow: `0 0 ${isBreathingActive ? 60 : 40}px ${isBreathingActive
+                                    ? (breathingPhase === "inhale" ? theme.sphereGlowStrong : breathingPhase === "exhale" ? theme.sphereGlowWeak : theme.sphereGlow)
+                                    : (isHolding ? theme.sphereGlowStrong : theme.sphereGlow)
+                                    }`
+                            }}
+                        >
+                            <span className={`${theme.sphereText} font-medium text-sm tracking-wide text-center`}>
+                                {isBreathingActive
+                                    ? breathingPhase
+                                    : isHolding
+                                        ? "hold..."
+                                        : "breathe"
+                                }
                             </span>
                         </div>
                     </div>
-                    <p className="mt-8 text-[#B2DFDB]/80 text-center max-w-md text-lg leading-relaxed">
-                        "Quiet the mind, and the soul will speak."
-                    </p>
+
+                    {/* Instruction text */}
+                    {!isBreathingActive && (
+                        <p className={`${theme.textSubtle} text-xs mt-3 italic`}>
+                            {isHolding ? `${Math.round(holdProgress)}%` : "hold to breathe"}
+                        </p>
+                    )}
+
+                    {/* Stop breathing button (when active) */}
+                    {isBreathingActive && (
+                        <button
+                            onClick={() => setIsBreathingActive(false)}
+                            className={`mt-3 text-xs ${theme.textSubtle} hover:${theme.textMuted} transition-colors`}
+                        >
+                            stop breathing
+                        </button>
+                    )}
                 </div>
 
-                {/* CENTER RIGHT: Mood & Journal */}
-                <div className="flex-1 w-full max-w-md space-y-8">
-                    
-                    {/* Mood Tracker (Glassmorphism Card) */}
-                    <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-8 shadow-xl">
-                        <h3 className="text-2xl text-[#E0F2F1] font-medium text-center mb-6 font-serif italic">How is your heart?</h3>
-                        <div className="flex justify-between gap-2 sm:gap-4">
-                            {[
-                                { icon: "😫", label: "Stressed", color: "bg-[#FFAB91]" },
-                                { icon: "😰", label: "Anxious", color: "bg-[#FFCC80]" },
-                                { icon: "😐", label: "Neutral", color: "bg-[#FFF59D]" },
-                                { icon: "😌", label: "Calm", color: "bg-[#A5D6A7]" },
-                                { icon: "🧘", label: "Zen", color: "bg-[#80CBC4]" },
-                            ].map((item) => (
-                                <button
-                                    key={item.label}
-                                    onClick={() => setMood(item.label)}
-                                    className={`group relative flex flex-col items-center transition-all duration-300 ${
-                                        mood === item.label ? "scale-110 -translate-y-2" : "hover:-translate-y-1 hover:scale-105"
-                                    }`}
-                                >
-                                    <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl shadow-[8px_8px_16px_rgba(0,0,0,0.2),inset_2px_2px_4px_rgba(255,255,255,0.4)] transition-all ${
-                                        mood === item.label ? "ring-4 ring-white/30 shadow-[0_0_20px_rgba(255,255,255,0.2)]" : ""
-                                    } ${item.color} bg-opacity-90 backdrop-blur-sm`}>
-                                        <span className="filter drop-shadow-md transform group-hover:scale-110 transition-transform">
-                                            {item.icon}
-                                        </span>
-                                    </div>
-                                    <span className={`mt-3 text-xs sm:text-sm font-sans tracking-wider transition-all duration-300 ${
-                                        mood === item.label ? "text-white font-bold opacity-100" : "text-[#B2DFDB] opacity-70 group-hover:opacity-100"
+                {/* Greeting */}
+                <p className={`${theme.textMuted} text-lg font-light italic mb-6`}>
+                    hey {userName.toLowerCase()}, i'm here.
+                </p>
+
+                {/* Chat Container */}
+                <div className="flex-1 w-full max-w-2xl flex flex-col min-h-0">
+                    {/* Chat Messages - Hidden scrollbar */}
+                    <div className="flex-1 overflow-y-auto px-2 space-y-4 min-h-0 mb-4 scrollbar-hide">
+                        {chatMessages.length === 0 && (
+                            <div className={`text-center ${theme.textSubtle} py-8`}>
+                                <p className="italic">take your time. i'm listening.</p>
+                            </div>
+                        )}
+                        {chatMessages.map((msg, idx) => (
+                            <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                                <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed backdrop-blur-sm border ${msg.role === "user"
+                                    ? `${theme.userBubble} rounded-br-md`
+                                    : `${theme.aiBubble} rounded-bl-md`
                                     }`}>
-                                        {item.label}
-                                    </span>
-                                </button>
-                            ))}
-                        </div>
+                                    {msg.content}
+                                </div>
+                            </div>
+                        ))}
+                        {isChatLoading && (
+                            <div className="flex justify-start">
+                                <div className={`backdrop-blur-sm border px-4 py-3 rounded-2xl rounded-bl-md ${theme.aiBubble}`}>
+                                    <div className="flex gap-1">
+                                        <span className={`w-2 h-2 ${theme.loadingDot} rounded-full animate-bounce`} />
+                                        <span className={`w-2 h-2 ${theme.loadingDot} rounded-full animate-bounce [animation-delay:0.1s]`} />
+                                        <span className={`w-2 h-2 ${theme.loadingDot} rounded-full animate-bounce [animation-delay:0.2s]`} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        <div ref={chatEndRef} />
                     </div>
 
-                    {/* Gratitude Journal (Glassmorphism) */}
-                    <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-xl">
-                        <div className="flex items-center gap-3 mb-4 text-[#B2DFDB]">
-                            <BookOpen size={20} />
-                            <span className="font-sans text-sm font-bold tracking-wider uppercase">Gratitude Journal</span>
-                        </div>
-                        <textarea
-                            value={journalEntry}
-                            onChange={(e) => setJournalEntry(e.target.value)}
-                            placeholder="I am grateful for..."
-                            className="w-full h-32 bg-black/10 rounded-xl p-4 text-[#E0F2F1] placeholder:text-[#E0F2F1]/30 focus:outline-none focus:bg-black/20 transition-colors resize-none font-sans leading-relaxed"
-                        />
-                        <div className="flex justify-end mt-2">
-                            <button className="text-xs font-bold text-[#80CBC4] hover:text-[#B2DFDB] transition-colors uppercase tracking-widest">
-                                Save Entry
+                    {/* Quick Reply Pills - Squishy buttons */}
+                    <div className="flex flex-wrap justify-center gap-2 mb-4 px-4">
+                        {DEFAULT_PILLS.map((pill, index) => (
+                            <button
+                                key={index}
+                                onClick={() => sendMessage(pill.text)}
+                                className={`flex items-center gap-2 px-5 py-2.5 rounded-full backdrop-blur-sm border ${theme.pillBg} ${theme.pillText} text-sm shadow-sm cursor-pointer select-none
+                                    transition-all duration-150 ease-out
+                                    hover:scale-105 hover:shadow-md
+                                    active:scale-90 active:shadow-sm
+                                `}
+                            >
+                                <span className="text-base">{pill.emoji}</span>
+                                <span className="font-medium">{pill.text}</span>
                             </button>
-                        </div>
+                        ))}
                     </div>
 
+                    {/* Input Area */}
+                    <div className="flex gap-3 px-4">
+                        <input
+                            type="text"
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && sendMessage(chatInput)}
+                            placeholder="or just type..."
+                            className={`flex-1 backdrop-blur-sm border rounded-xl px-4 py-3 text-sm focus:outline-none transition-all shadow-sm ${theme.inputBg}`}
+                        />
+                        <button
+                            onClick={() => sendMessage(chatInput)}
+                            disabled={!chatInput.trim() || isChatLoading}
+                            className={`${theme.sendBtn} px-4 py-3 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed`}
+                        >
+                            <Send size={18} />
+                        </button>
+                    </div>
                 </div>
+
+                {/* Bottom Quote */}
+                <p className={`${theme.textSubtle} text-sm italic mt-6`}>
+                    "it's okay to rest. you're doing enough."
+                </p>
             </div>
+
+            {/* Decorative Elements - Bottom Left */}
+            <div className="absolute bottom-8 left-8 opacity-30 pointer-events-none z-0">
+                <svg width="60" height="60" viewBox="0 0 60 60" fill="none">
+                    <path d="M10 50 Q30 30, 50 50" stroke="currentColor" strokeWidth="1" className={isDarkMode ? "text-indigo-300" : "text-orange-300"} />
+                    <circle cx="15" cy="45" r="3" fill="currentColor" className={isDarkMode ? "text-indigo-200" : "text-orange-200"} />
+                </svg>
+            </div>
+
+            {/* Custom styles */}
+            <style jsx>{`
+                .scrollbar-hide::-webkit-scrollbar {
+                    display: none;
+                }
+                .scrollbar-hide {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                }
+                /* Squishy button animation */
+                button {
+                    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
+                }
+            `}</style>
         </div>
     );
 }

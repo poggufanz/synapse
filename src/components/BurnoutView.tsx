@@ -2,8 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useEnergyStore } from "@/store/useEnergyStore";
-import { ArrowLeft, Moon, Sun, Send, Music, Wind } from "lucide-react";
+import { ArrowLeft, Moon, Sun, Send, Music, Wind, Shield, BookHeart } from "lucide-react";
 import BreathingModal from "./BreathingModal";
+import SafetyPlanModal from "./SafetyPlanModal";
+import GrowthGarden from "./GrowthGarden";
+import QuickJournal from "./QuickJournal";
 
 // Chat message type
 interface ChatMessage {
@@ -75,6 +78,12 @@ export default function BurnoutView() {
 
     // Breathing Modal State
     const [isBreathingOpen, setIsBreathingOpen] = useState(false);
+
+    // Safety Plan Modal State
+    const [isSafetyPlanOpen, setIsSafetyPlanOpen] = useState(false);
+
+    // Quick Journal State
+    const [isJournalOpen, setIsJournalOpen] = useState(false);
 
     // Load theme from localStorage
     useEffect(() => {
@@ -432,6 +441,15 @@ export default function BurnoutView() {
                     <Wind size={18} />
                     <span>Breathe</span>
                 </button>
+
+                {/* Quick Journal Button - Separate Card */}
+                <button
+                    onClick={() => setIsJournalOpen(true)}
+                    className={`backdrop-blur-sm border rounded-2xl p-3 shadow-lg ${theme.moodCardBg} flex items-center justify-center gap-2 transition-all text-sm ${theme.pillText} hover:scale-105`}
+                >
+                    <BookHeart size={18} />
+                    <span>Jurnal</span>
+                </button>
             </div>
 
             {/* Top Right: Exit Button */}
@@ -445,6 +463,11 @@ export default function BurnoutView() {
                 </button>
             </div>
 
+            {/* Right Side: Growth Garden */}
+            <div className="absolute right-4 top-20 z-40 w-80">
+                <GrowthGarden />
+            </div>
+
             {/* Bottom Right: Theme Toggle */}
             <div className="absolute bottom-6 right-6 z-50">
                 <button
@@ -456,6 +479,20 @@ export default function BurnoutView() {
                 >
                     {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
                     <span>{isDarkMode ? "Light" : "Dark"}</span>
+                </button>
+            </div>
+
+            {/* Bottom Left: Safety Plan Emergency Button */}
+            <div className="absolute bottom-6 left-6 z-50">
+                <button
+                    onClick={() => setIsSafetyPlanOpen(true)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-sm border bg-red-500/20 border-red-500/50 text-red-400 text-sm shadow-lg cursor-pointer select-none
+                        hover:scale-105 hover:shadow-xl hover:bg-red-500/30
+                        active:scale-90
+                    `}
+                >
+                    <Shield size={16} />
+                    <span>Safety Plan</span>
                 </button>
             </div>
 
@@ -572,6 +609,20 @@ export default function BurnoutView() {
             <BreathingModal
                 isOpen={isBreathingOpen}
                 onClose={() => setIsBreathingOpen(false)}
+            />
+
+            {/* Safety Plan Modal */}
+            <SafetyPlanModal
+                isOpen={isSafetyPlanOpen}
+                onClose={() => setIsSafetyPlanOpen(false)}
+                isDarkMode={isDarkMode}
+            />
+
+            {/* Quick Journal Modal */}
+            <QuickJournal
+                isOpen={isJournalOpen}
+                onClose={() => setIsJournalOpen(false)}
+                isDarkMode={isDarkMode}
             />
         </div>
     );

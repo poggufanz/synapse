@@ -3,7 +3,7 @@
 import { useEnergyStore } from "@/store/useEnergyStore";
 import { useAppStore } from "@/store/useAppStore";
 import { useSmartTasks } from "@/hooks/useSmartTasks";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { toast } from "sonner";
 import {
     ArrowLeft,
@@ -16,10 +16,15 @@ import {
     Circle,
     ChevronDown,
     ChevronUp,
-    Sparkles
+    Sparkles,
+    Calendar,
+    Clock,
+    Tag
 } from "lucide-react";
 import ProductiveChat from "./ProductiveChat";
 import IdeaVault from "./IdeaVault";
+import { parseTaskInput, ParsedTask } from "@/utils/taskNlpParser";
+import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 
 interface MicroMission {
     id: string;
@@ -49,6 +54,9 @@ export default function ProductiveView() {
     // Soft Lock: When exhausted, disable task input and show rest message
     const isSoftLocked = moodState === "exhausted";
     const isAnxious = moodState === "anxious";
+
+    // Google Calendar integration
+    const { syncTask: syncToCalendar, isConnected: isCalendarConnected } = useGoogleCalendar();
 
     // Convert store Task to MicroMission format for display
     const tasks: MicroMission[] = rawTasks.map(t => ({
@@ -103,6 +111,12 @@ export default function ProductiveView() {
 
     // Task limit constant
     const MAX_TASKS = 10;
+
+    // NLP parsing of input - live preview
+    const parsedTask = useMemo(() => {
+        if (!inputValue.trim()) return null;
+        return parseTaskInput(inputValue);
+    }, [inputValue]);
 
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -275,20 +289,48 @@ export default function ProductiveView() {
             return;
         }
 
+        // Use NLP parsed data if available
+        const parsed = parsedTask || parseTaskInput(inputValue);
+
+        // Build summary with parsed info
+        let summaryParts: string[] = [];
+        if (parsed.dateText) summaryParts.push(`📅 ${parsed.dateText}`);
+        if (parsed.timeText) summaryParts.push(`⏰ ${parsed.timeText}`);
+        if (parsed.tag) summaryParts.push(parsed.tag);
+        const summary = summaryParts.length > 0
+            ? summaryParts.join(" • ")
+            : "Manual task - add details as you work";
+
         const newTask: MicroMission = {
             id: Date.now().toString(),
-            action: inputValue.trim(),
-            summary: "Manual task - add details as you work",
-            energy: "Shallow Work",
+            action: parsed.title,
+            summary: summary,
+            energy: parsed.tag === "#Work" ? "Deep Work" : "Shallow Work",
             source: "Manual",
-            duration: selectedDuration,
+            duration: parsed.duration || selectedDuration,
             isCompleted: false,
             isAIGenerated: false,
         };
 
         setTasks([newTask, ...tasks]);
         setInputValue("");
-        toast.success("Task added! 📝");
+
+        // Show confirmation with parsed details
+        if (parsed.dateText || parsed.timeText || parsed.tag) {
+            toast.success(`Task added! ${summaryParts.join(" ")} 📝`);
+        } else {
+            toast.success("Task added! 📝");
+        }
+
+        // Auto-sync to Google Calendar if task has scheduled time
+        if (parsed.hasScheduledTime && parsed.date && parsed.time) {
+            syncToCalendar(
+                parsed.title,
+                parsed.date,
+                parsed.time,
+                parsed.duration || selectedDuration
+            );
+        }
     };
 
     const handleDeleteTask = (id: string) => {
@@ -723,9 +765,45 @@ export default function ProductiveView() {
                                 <textarea
                                     value={inputValue}
                                     onChange={(e) => setInputValue(e.target.value)}
-                                    placeholder="What's on your mind? (Type a simple task or dump your stress here...)"
+                                    placeholder="Coba ketik: 'Meeting marketing senin jam 9 pagi' atau tugas biasa..."
                                     className="w-full h-32 p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-blue-400 focus:outline-none text-slate-800 font-medium resize-none transition-all text-base leading-relaxed mb-4"
                                 />
+
+                                {/* NLP Preview - Show parsed data */}
+                                {parsedTask && (parsedTask.dateText || parsedTask.timeText || parsedTask.tag) && (
+                                    <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-100">
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                            <Sparkles size={12} className="text-purple-500" />
+                                            Quick Parse Preview
+                                        </p>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {parsedTask.dateText && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold">
+                                                    <Calendar size={12} />
+                                                    {parsedTask.dateText}
+                                                </span>
+                                            )}
+                                            {parsedTask.timeText && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-bold">
+                                                    <Clock size={12} />
+                                                    {parsedTask.timeText}
+                                                </span>
+                                            )}
+                                            {parsedTask.tag && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold">
+                                                    <Tag size={12} />
+                                                    {parsedTask.tag}
+                                                </span>
+                                            )}
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold">
+                                                ⏱️ {parsedTask.duration}m
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-2">
+                                            <span className="font-medium">Task:</span> {parsedTask.title}
+                                        </p>
+                                    </div>
+                                )}
 
                                 {/* Duration Pills */}
                                 <div className="flex items-center gap-3 mb-4">

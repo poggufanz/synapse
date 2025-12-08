@@ -10,30 +10,30 @@ interface BreathingModalProps {
 
 export default function BreathingModal({ isOpen, onClose }: BreathingModalProps) {
     const [phase, setPhase] = useState<"inhale" | "hold" | "exhale">("inhale");
-    const [text, setText] = useState("Breathe In...");
+    const [text, setText] = useState("inhale");
 
     useEffect(() => {
         if (!isOpen) return;
 
         // Reset to initial state when opening
         setPhase("inhale");
-        setText("Breathe In...");
+        setText("inhale");
 
         const runCycle = () => {
             // Phase 1: Inhale (0s - 4s)
             setPhase("inhale");
-            setText("Breathe In...");
+            setText("inhale");
 
             // Phase 2: Hold (4s - 8s)
             setTimeout(() => {
                 setPhase("hold");
-                setText("Hold");
+                setText("hold");
             }, 4000);
 
             // Phase 3: Exhale (8s - 12s)
             setTimeout(() => {
                 setPhase("exhale");
-                setText("Breathe Out...");
+                setText("exhale");
             }, 8000);
         };
 
@@ -46,13 +46,14 @@ export default function BreathingModal({ isOpen, onClose }: BreathingModalProps)
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-[#F5F0E6]/90 backdrop-blur-md z-[100] flex items-center justify-center animate-fadeIn">
+        <div className="fixed inset-0 bg-gradient-to-br from-[#0f1a2e] via-[#1a2642] to-[#2a1f4e] z-[100] flex items-center justify-center">
+            {/* Close button */}
             <button
                 onClick={(e) => {
                     e.stopPropagation();
                     onClose();
                 }}
-                className="absolute top-8 right-8 text-[#3E2723]/40 hover:text-[#3E2723] transition-colors p-2"
+                className="absolute top-8 right-8 text-white/40 hover:text-white transition-colors p-2"
             >
                 <X size={32} />
             </button>
@@ -60,39 +61,56 @@ export default function BreathingModal({ isOpen, onClose }: BreathingModalProps)
             <div className="flex flex-col items-center justify-center w-full h-full">
                 {/* Breathing Circle Container */}
                 <div className="relative flex items-center justify-center w-96 h-96">
-                    {/* The Breathing Circle */}
+                    {/* Outer glow rings */}
+                    <div
+                        className={`absolute rounded-full border border-[#4fd1c5]/30 transition-all duration-[4000ms] ease-in-out ${phase === "inhale" ? "w-80 h-80 opacity-100" :
+                                phase === "hold" ? "w-80 h-80 opacity-80" :
+                                    "w-48 h-48 opacity-50"
+                            }`}
+                    />
+                    <div
+                        className={`absolute rounded-full border border-[#4fd1c5]/20 transition-all duration-[4000ms] ease-in-out ${phase === "inhale" ? "w-96 h-96 opacity-100" :
+                                phase === "hold" ? "w-96 h-96 opacity-60" :
+                                    "w-56 h-56 opacity-30"
+                            }`}
+                    />
+
+                    {/* The Breathing Circle - Gradient teal like BurnoutView */}
                     <div
                         className={`
                             rounded-full flex items-center justify-center text-center
+                            bg-gradient-to-br from-[#4fd1c5] to-[#2dd4bf]
                             transition-all duration-[4000ms] ease-in-out
-                            shadow-2xl
-                            ${phase === "inhale" ? "w-80 h-80 bg-[#D7CCC8]" :
-                                phase === "hold" ? "w-80 h-80 bg-[#D7CCC8]" :
-                                    "w-40 h-40 bg-[#D7CCC8]"}
+                            ${phase === "inhale" ? "w-64 h-64" :
+                                phase === "hold" ? "w-64 h-64" :
+                                    "w-32 h-32"}
                         `}
+                        style={{
+                            boxShadow: `0 0 ${phase === "inhale" ? 80 : phase === "exhale" ? 30 : 60}px rgba(79,209,197,${phase === "inhale" ? 0.6 : phase === "exhale" ? 0.2 : 0.4})`
+                        }}
                     >
                         <span className={`
-                            font-serif text-2xl md:text-3xl text-[#3E2723] font-medium tracking-wide
+                            font-medium text-xl md:text-2xl text-[#0f1a2e] tracking-wide
                             transition-opacity duration-500
                             ${phase === "hold" ? "opacity-100" : "opacity-90"}
                         `}>
                             {text}
                         </span>
                     </div>
-
-                    {/* Outer Ripple/Guide Circle (Optional, for visual depth) */}
-                    <div
-                        className={`
-                            absolute rounded-full border-2 border-[#3E2723]/10
-                            transition-all duration-[4000ms] ease-in-out
-                            ${phase === "inhale" || phase === "hold" ? "w-96 h-96 opacity-100" : "w-48 h-48 opacity-50"}
-                        `}
-                    />
                 </div>
 
-                <p className="mt-12 text-[#3E2723]/60 font-serif text-lg animate-pulse">
-                    Focus on your breath.
+                {/* Instruction text */}
+                <p className="mt-12 text-white/40 text-sm italic">
+                    focus on your breath
                 </p>
+
+                {/* Stop button */}
+                <button
+                    onClick={onClose}
+                    className="mt-6 text-white/60 hover:text-white text-sm transition-colors"
+                >
+                    stop breathing
+                </button>
             </div>
         </div>
     );

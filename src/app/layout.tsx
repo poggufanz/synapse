@@ -28,7 +28,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${nunito.className} ${playfair.variable} ${merriweather.variable}`}>
         {children}
-        <Toaster position="top-center" />
+        <Toaster position="top-right" />
       </body>
     </html>
   );

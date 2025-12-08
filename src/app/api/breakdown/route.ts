@@ -1,17 +1,12 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+import callGemini from "@/utils/callGemini";
 
 export async function POST(req: Request) {
   try {
     const { task } = await req.json();
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    const prompt = `
-      You are an expert project manager and gamification master. Your job is to deconstruct a user's broad learning topic (Brain Dump) into 3-6 actionable, sequential “Micro-missions” that promote focused, incremental learning.
-
-      Input: "${task}"
+    const systemPrompt = `
+      You are an expert project manager and gamification master. Your job is to deconstruct a user's broad learning topic (Brain Dump) into 3-6 actionable, sequential "Micro-missions" that promote focused, incremental learning.
 
       The Micro-missions MUST be concrete, starting from the most fundamental/easy step, and progress logically towards the main topic. They must specify a clear action related to learning content (e.g., 'Define Key Terms', 'Watch Intro Video', 'Solve 5 Practice Problems').
 
@@ -21,7 +16,7 @@ export async function POST(req: Request) {
       3. "energy": "Deep Work" (complex problem-solving, synthesis), "Shallow Work" (reading definitions, watching introductory videos), or "Recovery" (reviewing notes, organizing files).
       4. "source": Where this came from (always "User Learning Goal").
 
-      Return ONLY a JSON array of objects. The first mission should always be Shallow Work and focus on a very quick, fundamental introduction (e.g., '5-minute intro').
+      Return ONLY a JSON array of objects. No markdown, no explanation. The first mission should always be Shallow Work and focus on a very quick, fundamental introduction (e.g., '5-minute intro').
 
       Example for Input: "aku mau belajar kalkulus materi limit"
       [
@@ -52,11 +47,14 @@ export async function POST(req: Request) {
       ]
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = result.response.text();
+    const responseText = await callGemini({
+      message: `Break down this task into micro-missions: "${task}"`,
+      systemPrompt,
+      modelName: "gemini-2.5-flash",
+    });
 
     // Clean up markdown code blocks if present
-    const cleanResponse = response
+    const cleanResponse = responseText
       .replace(/```json/g, "")
       .replace(/```/g, "")
       .trim();

@@ -1,164 +1,144 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useEnergyStore } from "@/store/useEnergyStore";
-import { Send, Bot, X, Minimize2, Maximize2 } from "lucide-react";
-
-interface ChatMessage {
-    role: "user" | "ai";
-    content: string;
-}
+import { Bot } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import CircularRevealTransition from "./CircularRevealTransition";
 
 export default function ProductiveChat() {
-    const persona = useEnergyStore((state) => state.persona);
-    const [isOpen, setIsOpen] = useState(false);
-    const [isMinimized, setIsMinimized] = useState(false);
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [input, setInput] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
-    const chatEndRef = useRef<HTMLDivElement>(null);
+    const [phase, setPhase] = useState<"idle" | "moving" | "waiting" | "fading" | "transition">("idle");
+    const [positions, setPositions] = useState({
+        centerX: 0,
+        centerY: 0,
+        windowWidth: 0,
+        windowHeight: 0
+    });
+    const buttonRef = useRef<HTMLButtonElement>(null);
 
+    // Get window dimensions on client side
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages, isOpen]);
+        if (typeof window !== 'undefined') {
+            setPositions(prev => ({
+                ...prev,
+                windowWidth: window.innerWidth,
+                windowHeight: window.innerHeight
+            }));
+        }
+    }, []);
 
-    const handleSend = async () => {
-        if (!input.trim()) return;
+    const handleClick = () => {
+        if (!buttonRef.current || typeof window === 'undefined') return;
 
-        const userMsg: ChatMessage = { role: "user", content: input };
-        setMessages((prev) => [...prev, userMsg]);
-        setInput("");
-        setIsLoading(true);
+        const rect = buttonRef.current.getBoundingClientRect();
+        const startX = rect.left + rect.width / 2;
+        const startY = rect.top + rect.height / 2;
 
-        try {
-            const response = await fetch("/api/chat-productive", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    history: messages,
-                    message: userMsg.content,
-                    persona,
-                }),
-            });
+        setPositions({
+            centerX: window.innerWidth / 2 - startX,
+            centerY: window.innerHeight / 2 - startY,
+            windowWidth: window.innerWidth,
+            windowHeight: window.innerHeight
+        });
 
-            if (response.ok) {
-                const data = await response.json();
-                setMessages((prev) => [...prev, { role: "ai", content: data.message }]);
-            }
-        } catch (error) {
-            console.error("Chat error", error);
-        } finally {
-            setIsLoading(false);
+        setPhase("moving");
+    };
+
+    // Handle animation sequence
+    useEffect(() => {
+        if (phase === "waiting") {
+            // Wait 0.3 seconds at center, then start fading
+            const timer = setTimeout(() => {
+                setPhase("fading");
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+        if (phase === "fading") {
+            // Start transition while fading (button fades for 0.5s)
+            const timer = setTimeout(() => {
+                setPhase("transition");
+            }, 300); // Start transition slightly before fade completes for overlap
+            return () => clearTimeout(timer);
+        }
+    }, [phase]);
+
+    const handleMoveComplete = () => {
+        if (phase === "moving") {
+            setPhase("waiting");
         }
     };
 
-    if (!isOpen) {
-        return (
-            <button
-                onClick={() => setIsOpen(true)}
-                className="fixed bottom-28 right-8 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg hover:shadow-blue-200 transition-all hover:scale-110 z-40 group border-b-4 border-blue-800 active:border-b-0 active:translate-y-1"
-            >
-                <Bot size={28} />
-                <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-slate-800 text-white text-xs px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold">
-                    Sparring Partner
-                </span>
-            </button>
-        );
-    }
+    // Get animation based on phase
+    const getAnimation = () => {
+        switch (phase) {
+            case "idle":
+                return { x: 0, y: 0, scale: 1, opacity: 1 };
+            case "moving":
+            case "waiting":
+                return { x: positions.centerX, y: positions.centerY, scale: 1.2, opacity: 1 };
+            case "fading":
+            case "transition":
+                return { x: positions.centerX, y: positions.centerY, scale: 1.5, opacity: 0 };
+            default:
+                return { x: 0, y: 0, scale: 1, opacity: 1 };
+        }
+    };
+
+    const getTransition = () => {
+        switch (phase) {
+            case "moving":
+                return { duration: 0.5, ease: "easeInOut" as const };
+            case "fading":
+                return { duration: 0.6, ease: "easeOut" as const };
+            default:
+                return { duration: 0.3 };
+        }
+    };
 
     return (
-        <div
-            className={`fixed right-8 bg-white border border-slate-200 rounded-[32px] shadow-2xl transition-all duration-300 z-40 flex flex-col overflow-hidden ${isMinimized ? "bottom-28 w-72 h-20" : "bottom-28 w-80 md:w-96 h-[600px]"
-                }`}
-        >
-            {/* Header */}
-            <div className="bg-white p-4 flex items-center justify-between border-b border-slate-100 cursor-pointer" onClick={() => setIsMinimized(!isMinimized)}>
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-50 rounded-xl">
-                        <Bot className="text-blue-600" size={20} />
-                    </div>
-                    <div>
-                        <span className="font-bold text-slate-800 text-sm block">Sparring Partner</span>
-                        <span className="text-xs text-slate-400 font-medium">Online</span>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
-                        className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-50 rounded-lg"
+        <>
+            {/* Animated FAB Button */}
+            <AnimatePresence>
+                {phase !== "transition" && (
+                    <motion.button
+                        ref={buttonRef}
+                        initial={{ x: 0, y: 0, scale: 1, opacity: 1 }}
+                        animate={getAnimation()}
+                        transition={getTransition()}
+                        onAnimationComplete={phase === "moving" ? handleMoveComplete : undefined}
+                        onClick={phase === "idle" ? handleClick : undefined}
+                        className={`fixed bottom-28 right-8 bg-blue-600 text-white p-4 rounded-full shadow-xl z-50 ${phase === "idle"
+                            ? "hover:bg-blue-700 hover:shadow-blue-300/50 hover:scale-110 border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 cursor-pointer group"
+                            : "cursor-default shadow-2xl shadow-blue-500/40 border-b-4 border-blue-800"
+                            }`}
+                        style={{ pointerEvents: phase === "idle" ? "auto" : "none" }}
                     >
-                        {isMinimized ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
-                    </button>
-                    <button
-                        onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
-                        className="text-slate-400 hover:text-red-500 transition-colors p-1 hover:bg-red-50 rounded-lg"
-                    >
-                        <X size={16} />
-                    </button>
-                </div>
-            </div>
-
-            {/* Chat Area */}
-            {!isMinimized && (
-                <>
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
-                        {messages.length === 0 && (
-                            <div className="text-center text-slate-400 text-sm mt-8">
-                                <p className="font-bold text-slate-600">Ready to spar, {persona?.name}.</p>
-                                <p className="text-xs mt-1">Let's tackle that complex problem.</p>
-                            </div>
+                        <Bot size={28} />
+                        {phase === "idle" && (
+                            <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-slate-800 text-white text-xs px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold">
+                                Sparring Partner
+                            </span>
                         )}
-                        {messages.map((msg, idx) => (
-                            <div
-                                key={idx}
-                                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                            >
-                                <div
-                                    className={`max-w-[85%] px-5 py-3 rounded-2xl text-sm font-medium shadow-sm ${msg.role === "user"
-                                        ? "bg-blue-600 text-white rounded-br-sm"
-                                        : "bg-white text-slate-700 border border-slate-100 rounded-bl-sm"
-                                        }`}
-                                >
-                                    {msg.content}
-                                </div>
-                            </div>
-                        ))}
-                        {isLoading && (
-                            <div className="flex justify-start">
-                                <div className="bg-white px-4 py-3 rounded-2xl rounded-bl-sm border border-slate-100 shadow-sm">
-                                    <div className="flex gap-1">
-                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" />
-                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce delay-100" />
-                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce delay-200" />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                        <div ref={chatEndRef} />
-                    </div>
 
-                    {/* Input */}
-                    <div className="p-3 bg-white border-t border-slate-100">
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                                placeholder="Ask me anything..."
-                                className="flex-1 bg-slate-50 border-transparent focus:bg-white border focus:border-blue-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none transition-all font-medium"
+                        {/* Pulse ring when waiting */}
+                        {phase === "waiting" && (
+                            <motion.div
+                                initial={{ scale: 1, opacity: 0.8 }}
+                                animate={{ scale: 2.5, opacity: 0 }}
+                                transition={{ duration: 0.7, ease: "easeOut" }}
+                                className="absolute inset-0 bg-blue-500 rounded-full -z-10"
                             />
-                            <button
-                                onClick={handleSend}
-                                disabled={!input.trim() || isLoading}
-                                className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl transition-colors disabled:opacity-50 shadow-soft-blue"
-                            >
-                                <Send size={18} />
-                            </button>
-                        </div>
-                    </div>
-                </>
-            )}
-        </div>
+                        )}
+                    </motion.button>
+                )}
+            </AnimatePresence>
+
+            {/* Circular Reveal Transition */}
+            <CircularRevealTransition
+                isActive={phase === "transition" || phase === "fading"}
+                originX={positions.windowWidth / 2}
+                originY={positions.windowHeight / 2}
+                targetRoute="/sparring-partner"
+            />
+        </>
     );
 }

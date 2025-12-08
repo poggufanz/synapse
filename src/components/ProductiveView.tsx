@@ -409,12 +409,18 @@ export default function ProductiveView() {
                 <div className="absolute bottom-[25%] left-[20%] w-8 h-8 border-2 border-cyan-300/20 rounded-xl rotate-45 animate-float" />
             </div>
 
-            {/* Exit Focus Button */}
+            {/* Exit Focus Button - Mobile FAB (bottom-left) / Desktop (top-right) */}
             <button
                 onClick={() => setMode(null)}
-                className="absolute top-8 right-8 text-slate-400 hover:text-slate-600 text-sm transition-colors flex items-center gap-2 z-20 font-bold"
+                className="fixed lg:absolute bottom-6 left-6 lg:bottom-auto lg:left-auto lg:top-8 lg:right-8 
+                    text-white lg:text-slate-400 hover:text-slate-600 
+                    bg-slate-700 lg:bg-transparent 
+                    p-4 lg:p-0 rounded-full lg:rounded-none 
+                    shadow-lg lg:shadow-none
+                    text-sm transition-all flex items-center gap-2 z-50 font-bold"
             >
-                <ArrowLeft size={16} /> Exit Focus
+                <ArrowLeft size={16} />
+                <span className="hidden lg:inline">Exit Focus</span>
             </button>
 
             {/* Idea Vault FAB */}

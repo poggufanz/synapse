@@ -26,7 +26,7 @@ export default function EnergyGate() {
                 {/* Decor: Blue Blobs */}
                 <div className="absolute top-[-20%] left-[-20%] w-48 h-48 md:w-96 md:h-96 bg-blue-200/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob" />
                 <div className="absolute bottom-[10%] right-[10%] w-32 h-32 md:w-48 md:h-48 bg-cyan-200/30 rounded-full mix-blend-multiply filter blur-2xl opacity-60 animate-blob animation-delay-2000" />
-                
+
                 {/* Decor: Geometric Accents & Icons */}
                 <div className="absolute top-20 left-10 opacity-20 group-hover:opacity-40 transition-opacity hidden md:block animate-float">
                     <Zap size={48} className="text-blue-300 rotate-12" />
@@ -69,7 +69,7 @@ export default function EnergyGate() {
 
                     {/* Enhanced CTA */}
                     <div className="mt-6 md:mt-12 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all duration-500 md:translate-y-8 group-hover:translate-y-0">
-                        <div className="inline-flex items-center gap-2 md:gap-3 bg-blue-600 text-white font-black text-sm md:text-lg px-6 py-3 md:px-8 md:py-4 rounded-2xl shadow-xl shadow-blue-200 border-b-4 border-blue-800 hover:border-b-0 hover:translate-y-1 transition-all">
+                        <div className="btn-clay btn-clay-blue px-6 py-3 md:px-8 md:py-4 text-sm md:text-lg inline-flex items-center gap-2 md:gap-3">
                             Mulai Fokus <ArrowRight size={20} className="animate-pulse" />
                         </div>
                     </div>
@@ -127,7 +127,7 @@ export default function EnergyGate() {
 
                     {/* Enhanced CTA */}
                     <div className="mt-6 md:mt-12 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all duration-500 md:translate-y-8 group-hover:translate-y-0">
-                        <div className="inline-flex items-center gap-2 md:gap-3 bg-orange-600 text-white font-black text-sm md:text-lg px-6 py-3 md:px-8 md:py-4 rounded-2xl shadow-xl shadow-orange-200 border-b-4 border-orange-800 hover:border-b-0 hover:translate-y-1 transition-all">
+                        <div className="btn-clay btn-clay-orange px-6 py-3 md:px-8 md:py-4 text-sm md:text-lg inline-flex items-center gap-2 md:gap-3">
                             Masuk ke "Gua" <ArrowRight size={20} className="animate-pulse" />
                         </div>
                     </div>

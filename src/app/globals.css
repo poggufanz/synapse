@@ -28,6 +28,7 @@ body {
         -ms-overflow-style: none;
         scrollbar-width: none;
     }
+
     .hide-scrollbar::-webkit-scrollbar {
         display: none;
     }
@@ -37,17 +38,21 @@ body {
         scrollbar-width: thin;
         scrollbar-color: rgba(128, 203, 196, 0.3) transparent;
     }
+
     .chat-scrollbar::-webkit-scrollbar {
         width: 6px;
     }
+
     .chat-scrollbar::-webkit-scrollbar-track {
         background: transparent;
         border-radius: 3px;
     }
+
     .chat-scrollbar::-webkit-scrollbar-thumb {
         background: rgba(128, 203, 196, 0.3);
         border-radius: 3px;
     }
+
     .chat-scrollbar::-webkit-scrollbar-thumb:hover {
         background: rgba(128, 203, 196, 0.5);
     }
@@ -73,6 +78,14 @@ body {
         /* Soft Indigo/Blue */
         @apply hover:bg-[#818CF8];
         @apply shadow-soft-blue;
+    }
+
+    /* Variant: Orange (Warm - for Burnout/Rest Mode) */
+    .btn-clay-orange {
+        @apply bg-[#FDBA74] border-[#EA580C] text-white;
+        /* Orange-300 bg, Orange-600 border */
+        @apply hover:bg-[#FB923C];
+        @apply shadow-soft-orange;
     }
 
     /* Variant: Sage (Pastel Green - for Completion) */

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useEnergyStore } from "@/store/useEnergyStore";
-import { ArrowLeft, Volume2, VolumeX, Moon, Sun, Send } from "lucide-react";
+import { ArrowLeft, Moon, Sun, Send, Music, Wind } from "lucide-react";
+import BreathingModal from "./BreathingModal";
 
 // Chat message type
 interface ChatMessage {
@@ -69,8 +70,11 @@ export default function BurnoutView() {
 
     // Sound State
     const [isSoundOn, setIsSoundOn] = useState(false);
-    const [selectedSound, setSelectedSound] = useState("rain");
+    const [selectedSound, setSelectedSound] = useState<string | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    // Breathing Modal State
+    const [isBreathingOpen, setIsBreathingOpen] = useState(false);
 
     // Load theme from localStorage
     useEffect(() => {
@@ -204,7 +208,9 @@ export default function BurnoutView() {
 
         // Save preference
         try {
-            localStorage.setItem(SOUND_KEY, selectedSound);
+            if (selectedSound) {
+                localStorage.setItem(SOUND_KEY, selectedSound);
+            }
         } catch (error) {
             console.error("Failed to save sound preference:", error);
         }
@@ -259,7 +265,15 @@ export default function BurnoutView() {
     };
 
     const handleSoundSelect = (soundId: string) => {
-        setSelectedSound(soundId);
+        if (selectedSound === soundId && isSoundOn) {
+            // Same sound clicked while playing - stop it
+            audioRef.current?.pause();
+            setIsSoundOn(false);
+        } else {
+            // Different sound or not playing - play it
+            setSelectedSound(soundId);
+            setIsSoundOn(true);
+        }
     };
 
     const toggleTheme = () => {
@@ -381,40 +395,43 @@ export default function BurnoutView() {
                 <div className={`absolute bottom-[25%] right-[20%] w-8 h-8 border-2 ${theme.geometricBorder} rounded-full animate-float`} />
             </div>
 
-            {/* Top Left: Ambient Sounds Card */}
-            <div className="absolute top-4 left-4 z-50">
-                <div className={`backdrop-blur-sm border rounded-2xl p-3 shadow-lg ${theme.moodCardBg} transition-all duration-300 w-48`}>
-                    <div className="flex items-center justify-between mb-2">
-                        <span className={`text-xs font-medium ${theme.textMuted} uppercase tracking-wider`}>🎵 Ambient Sounds</span>
+            {/* Top Left: Music Controls */}
+            <div className="absolute top-4 left-4 z-50 flex flex-col gap-2">
+                {/* Music Card */}
+                <div className={`backdrop-blur-sm border rounded-2xl p-3 shadow-lg ${theme.moodCardBg} transition-all duration-300`}>
+                    {/* Music Icon */}
+                    <div className={`flex items-center justify-center mb-3 ${theme.textMuted}`}>
+                        <Music size={20} />
                     </div>
-                    <div className="flex justify-between gap-1 mb-2">
+
+                    {/* Sound Options - Vertical */}
+                    <div className="flex flex-col gap-2">
                         {SOUND_OPTIONS.map((sound) => (
                             <button
                                 key={sound.id}
                                 onClick={() => handleSoundSelect(sound.id)}
-                                className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg transition-all text-xs ${selectedSound === sound.id
-                                    ? `${theme.moodSelected} scale-105`
-                                    : `${theme.pillBg} hover:scale-105`
+                                className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-sm ${selectedSound === sound.id && isSoundOn
+                                    ? `${theme.sendBtn} scale-105`
+                                    : `${theme.pillBg} ${theme.pillText} hover:scale-105`
                                     }`}
                             >
-                                <span className="text-base">{sound.icon}</span>
-                                <span className={`text-[10px] ${selectedSound === sound.id ? theme.text : theme.textMuted}`}>
+                                <span className="text-lg">{sound.icon}</span>
+                                <span className={`text-xs ${selectedSound === sound.id && isSoundOn ? '' : theme.textMuted}`}>
                                     {sound.label.split(' ')[0]}
                                 </span>
                             </button>
                         ))}
                     </div>
-                    <button
-                        onClick={toggleSound}
-                        className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl transition-all text-xs ${isSoundOn
-                            ? theme.sendBtn
-                            : `${theme.pillBg} ${theme.pillText}`
-                            }`}
-                    >
-                        {isSoundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
-                        <span>{isSoundOn ? "Playing" : "Play Sound"}</span>
-                    </button>
                 </div>
+
+                {/* Breathing Button - Separate Card */}
+                <button
+                    onClick={() => setIsBreathingOpen(true)}
+                    className={`backdrop-blur-sm border rounded-2xl p-3 shadow-lg ${theme.moodCardBg} flex items-center justify-center gap-2 transition-all text-sm ${theme.pillText} hover:scale-105`}
+                >
+                    <Wind size={18} />
+                    <span>Breathe</span>
+                </button>
             </div>
 
             {/* Top Right: Exit Button */}
@@ -442,130 +459,12 @@ export default function BurnoutView() {
                 </button>
             </div>
 
-            {/* How is your heart - Mood Card (Right Side) */}
-            <div className="absolute right-6 top-1/2 -translate-y-1/2 z-40">
-                <div className={`backdrop-blur-sm border rounded-2xl p-4 shadow-lg ${theme.moodCardBg} transition-all duration-300`}>
-                    <h3 className={`text-sm font-medium text-center mb-3 ${theme.textMuted} italic`}>
-                        How is your heart?
-                    </h3>
-                    <div className="flex flex-col gap-2">
-                        {MOOD_OPTIONS.map((option) => (
-                            <button
-                                key={option.label}
-                                onClick={() => setMood(option.label)}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-full cursor-pointer select-none ${mood === option.label
-                                    ? `${theme.moodSelected} scale-105`
-                                    : `${theme.pillBg} hover:scale-105`
-                                    }
-                                    active:scale-90
-                                `}
-                            >
-                                <span className="text-xl">{option.icon}</span>
-                                <span className={`text-xs font-medium ${mood === option.label ? theme.text : theme.textMuted}`}>
-                                    {option.label}
-                                </span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
 
-            {/* Main Content */}
-            <div className="h-full w-full flex flex-col items-center pt-20 pb-8 px-4 relative z-10">
-
-                {/* Breathing Sphere with Hold-to-Activate */}
-                <div className="relative flex flex-col items-center justify-center mb-6">
-                    {/* Hold-to-Breathe Container */}
-                    <div
-                        className="relative flex items-center justify-center cursor-pointer select-none"
-                        onMouseDown={!isBreathingActive ? handleHoldStart : undefined}
-                        onMouseUp={!isBreathingActive ? handleHoldEnd : undefined}
-                        onMouseLeave={!isBreathingActive ? handleHoldEnd : undefined}
-                        onTouchStart={!isBreathingActive ? handleHoldStart : undefined}
-                        onTouchEnd={!isBreathingActive ? handleHoldEnd : undefined}
-                    >
-                        {/* Progress Ring (visible when not activated) */}
-                        {!isBreathingActive && (
-                            <svg className="absolute w-36 h-36 -rotate-90" viewBox="0 0 100 100">
-                                {/* Background circle */}
-                                <circle
-                                    cx="50"
-                                    cy="50"
-                                    r="45"
-                                    fill="none"
-                                    stroke={isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}
-                                    strokeWidth="4"
-                                />
-                                {/* Progress circle */}
-                                <circle
-                                    cx="50"
-                                    cy="50"
-                                    r="45"
-                                    fill="none"
-                                    stroke={isDarkMode ? "#4fd1c5" : "#f97316"}
-                                    strokeWidth="4"
-                                    strokeLinecap="round"
-                                    strokeDasharray={`${2 * Math.PI * 45}`}
-                                    strokeDashoffset={`${2 * Math.PI * 45 * (1 - holdProgress / 100)}`}
-                                    className="transition-all duration-75 ease-out"
-                                />
-                            </svg>
-                        )}
-
-                        {/* Outer glow rings (visible when breathing is active) */}
-                        {isBreathingActive && (
-                            <>
-                                <div className={`absolute w-32 h-32 rounded-full border ${theme.sphereBorder} transition-all duration-[4000ms] ease-in-out ${breathingPhase === "inhale" ? "scale-150 opacity-0" : "scale-100 opacity-50"
-                                    }`} />
-                                <div className={`absolute w-28 h-28 rounded-full border ${theme.sphereBorderWeak} transition-all duration-[4000ms] ease-in-out ${breathingPhase === "inhale" ? "scale-125 opacity-0" : "scale-90 opacity-30"
-                                    }`} />
-                            </>
-                        )}
-
-                        {/* Main sphere */}
-                        <div
-                            className={`w-24 h-24 rounded-full bg-gradient-to-br ${theme.sphereGradient} flex items-center justify-center transition-all ease-in-out ${isBreathingActive
-                                ? `duration-[4000ms] ${breathingPhase === "inhale" ? "scale-110" : breathingPhase === "exhale" ? "scale-90" : "scale-100"}`
-                                : `duration-150 ${isHolding ? "scale-95" : "scale-100 hover:scale-105"}`
-                                }`}
-                            style={{
-                                boxShadow: `0 0 ${isBreathingActive ? 60 : 40}px ${isBreathingActive
-                                    ? (breathingPhase === "inhale" ? theme.sphereGlowStrong : breathingPhase === "exhale" ? theme.sphereGlowWeak : theme.sphereGlow)
-                                    : (isHolding ? theme.sphereGlowStrong : theme.sphereGlow)
-                                    }`
-                            }}
-                        >
-                            <span className={`${theme.sphereText} font-medium text-sm tracking-wide text-center`}>
-                                {isBreathingActive
-                                    ? breathingPhase
-                                    : isHolding
-                                        ? "hold..."
-                                        : "breathe"
-                                }
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Instruction text */}
-                    {!isBreathingActive && (
-                        <p className={`${theme.textSubtle} text-xs mt-3 italic`}>
-                            {isHolding ? `${Math.round(holdProgress)}%` : "hold to breathe"}
-                        </p>
-                    )}
-
-                    {/* Stop breathing button (when active) */}
-                    {isBreathingActive && (
-                        <button
-                            onClick={() => setIsBreathingActive(false)}
-                            className={`mt-3 text-xs ${theme.textSubtle} hover:${theme.textMuted} transition-colors`}
-                        >
-                            stop breathing
-                        </button>
-                    )}
-                </div>
+            {/* Main Content - Full Height Chat */}
+            <div className="h-full w-full flex flex-col items-center pt-16 pb-8 px-4 relative z-10">
 
                 {/* Greeting */}
-                <p className={`${theme.textMuted} text-lg font-light italic mb-6`}>
+                <p className={`${theme.textMuted} text-lg font-light italic mb-4`}>
                     hey {userName.toLowerCase()}, i'm here.
                 </p>
 
@@ -668,6 +567,12 @@ export default function BurnoutView() {
                     transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
                 }
             `}</style>
+
+            {/* Breathing Modal */}
+            <BreathingModal
+                isOpen={isBreathingOpen}
+                onClose={() => setIsBreathingOpen(false)}
+            />
         </div>
     );
 }

@@ -25,6 +25,8 @@ import ProductiveChat from "./ProductiveChat";
 import IdeaVault from "./IdeaVault";
 import { parseTaskInput, ParsedTask } from "@/utils/taskNlpParser";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
+import FileUploadButton, { FileAttachment } from "./FileUploadButton";
+import BreakdownPreviewModal, { PreviewTask } from "./BreakdownPreviewModal";
 
 interface MicroMission {
     id: string;
@@ -93,6 +95,12 @@ export default function ProductiveView() {
     const [timeLeft, setTimeLeft] = useState(25 * 60); // seconds
     const [isRunning, setIsRunning] = useState(false);
     const [sessionDuration, setSessionDuration] = useState(25); // minutes
+    const [breakdownAttachments, setBreakdownAttachments] = useState<FileAttachment[]>([]);
+
+    // Breakdown Preview Modal state
+    const [showBreakdownPreview, setShowBreakdownPreview] = useState(false);
+    const [previewTasks, setPreviewTasks] = useState<PreviewTask[]>([]);
+    const [breakdownInput, setBreakdownInput] = useState("");
 
     // 90-minute Soft Lock state
     const [totalWorkTime, setTotalWorkTime] = useState(0); // in seconds
@@ -218,7 +226,7 @@ export default function ProductiveView() {
         new Audio("/notification.mp3").play().catch(() => { });
     };
 
-    const handleBreakDown = async (text: string) => {
+    const handleBreakDown = async (text: string, reprompt?: string) => {
         // Soft Lock: Don't allow breaking down tasks when exhausted
         if (isSoftLocked) {
             toast.error("You're exhausted. Time to rest, not add more tasks. 🌙");
@@ -231,47 +239,85 @@ export default function ProductiveView() {
             return;
         }
 
+        // Save input for reprompt
+        if (!reprompt) {
+            setBreakdownInput(text);
+        }
+
         setIsLoading(true);
+        setShowBreakdownPreview(true); // Open modal immediately to show loading
+
         try {
             const response = await fetch("/api/breakdown", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ task: text }),
+                body: JSON.stringify({
+                    task: text,
+                    reprompt,
+                    attachments: breakdownAttachments.map(f => ({
+                        data: f.data,
+                        mimeType: f.mimeType,
+                        name: f.name,
+                    })),
+                }),
             });
 
             if (response.ok) {
-                const newTasks = await response.json();
-
-                // Check how many tasks we can add without exceeding limit
-                const remainingSlots = MAX_TASKS - tasks.length;
-                const tasksToAdd = newTasks.slice(0, remainingSlots);
-
-                if (tasksToAdd.length < newTasks.length) {
-                    toast.warning(`Only added ${tasksToAdd.length} of ${newTasks.length} tasks to stay within limit. 📋`);
-                }
-
-                // Convert to MicroMission format with AI flag
-                const formattedTasks = tasksToAdd.map((t: any, index: number) => ({
-                    id: Date.now().toString() + index,
-                    action: t.action,
-                    summary: t.summary || "",
-                    energy: t.energy || "Shallow Work",
-                    source: t.source || "AI Generated",
-                    duration: 25,
-                    isCompleted: false,
-                    isAIGenerated: true,
-                }));
-                setTasks([...tasks, ...formattedTasks]);
-                toast.success("Mission Deconstructed! 🚀");
+                const newTasks: PreviewTask[] = await response.json();
+                setPreviewTasks(newTasks);
+            } else {
+                toast.error("Failed to break down task. Please try again.");
+                setShowBreakdownPreview(false);
             }
         } catch (error) {
             console.error("Failed to break down task", error);
             toast.error("Failed to break down task. Please try again.");
+            setShowBreakdownPreview(false);
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleAcceptBreakdown = (acceptedTasks: PreviewTask[]) => {
+        // Check how many tasks we can add without exceeding limit
+        const remainingSlots = MAX_TASKS - tasks.length;
+        const tasksToAdd = acceptedTasks.slice(0, remainingSlots);
+
+        if (tasksToAdd.length < acceptedTasks.length) {
+            toast.warning(`Only added ${tasksToAdd.length} of ${acceptedTasks.length} tasks to stay within limit. 📋`);
+        }
+
+        // Convert to MicroMission format with AI flag
+        const formattedTasks = tasksToAdd.map((t, index) => ({
+            id: Date.now().toString() + index,
+            action: t.action,
+            summary: t.summary || "",
+            energy: t.energy || "Shallow Work",
+            source: t.source || "AI Generated",
+            duration: t.duration || 5,
+            isCompleted: false,
+            isAIGenerated: true,
+        }));
+
+        setTasks([...tasks, ...formattedTasks]);
+        toast.success("Micro-tasks added! Start with the first one! 🚀");
+
+        // Clear state
+        setBreakdownAttachments([]);
+        setInputValue("");
+        setShowBreakdownPreview(false);
+        setPreviewTasks([]);
+    };
+
+    const handleRepromptBreakdown = (feedback: string) => {
+        handleBreakDown(breakdownInput, feedback);
+    };
+
+    const handleCancelBreakdown = () => {
+        setShowBreakdownPreview(false);
+        setPreviewTasks([]);
     };
 
     const handleAddTask = () => {
@@ -824,6 +870,74 @@ export default function ProductiveView() {
                                     </div>
                                 </div>
 
+                                {/* File Attachments - Compact inline */}
+                                <div className="mb-4 flex items-center gap-3 flex-wrap">
+                                    {/* File Previews */}
+                                    {breakdownAttachments.map((file, index) => (
+                                        <div key={`${file.name}-${index}`} className="relative">
+                                            <div className="relative bg-slate-100 rounded-lg border border-slate-200 overflow-hidden flex items-center gap-2 pl-2 pr-1 py-1">
+                                                {file.preview ? (
+                                                    <img src={file.preview} alt={file.name} className="w-8 h-8 object-cover rounded" />
+                                                ) : (
+                                                    <div className="w-8 h-8 flex items-center justify-center bg-red-100 rounded">
+                                                        <span className="text-[10px] text-red-600 font-bold">PDF</span>
+                                                    </div>
+                                                )}
+                                                <span className="text-xs text-slate-600 font-medium max-w-[100px] truncate">{file.name}</span>
+                                                <button
+                                                    onClick={() => setBreakdownAttachments(breakdownAttachments.filter((_, i) => i !== index))}
+                                                    className="w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 text-xs"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {/* Attach Button */}
+                                    {breakdownAttachments.length < 3 && (
+                                        <button
+                                            onClick={() => document.getElementById('breakdown-file-input')?.click()}
+                                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors border-2 border-dashed border-slate-200 hover:border-slate-300"
+                                        >
+                                            📎 Attach file
+                                        </button>
+                                    )}
+
+                                    {/* Hidden File Input */}
+                                    <input
+                                        id="breakdown-file-input"
+                                        type="file"
+                                        accept="image/*,application/pdf"
+                                        multiple
+                                        onChange={async (e) => {
+                                            if (!e.target.files) return;
+                                            const newFiles: FileAttachment[] = [];
+                                            for (let i = 0; i < e.target.files.length && breakdownAttachments.length + newFiles.length < 3; i++) {
+                                                const file = e.target.files[i];
+                                                if (file.size > 10 * 1024 * 1024) continue;
+                                                const reader = new FileReader();
+                                                const result = await new Promise<string>((resolve) => {
+                                                    reader.onload = (ev) => resolve(ev.target?.result as string);
+                                                    reader.readAsDataURL(file);
+                                                });
+                                                newFiles.push({
+                                                    data: result.split(',')[1],
+                                                    mimeType: file.type,
+                                                    name: file.name,
+                                                    size: file.size,
+                                                    preview: file.type.startsWith('image/') ? result : undefined,
+                                                });
+                                            }
+                                            if (newFiles.length > 0) {
+                                                setBreakdownAttachments([...breakdownAttachments, ...newFiles]);
+                                            }
+                                            e.target.value = '';
+                                        }}
+                                        className="hidden"
+                                    />
+                                </div>
+
                                 {/* Action Buttons */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <button
@@ -835,11 +949,11 @@ export default function ProductiveView() {
                                     </button>
                                     <button
                                         onClick={() => handleBreakDown(inputValue)}
-                                        disabled={isLoading || !inputValue.trim()}
+                                        disabled={isLoading || (!inputValue.trim() && breakdownAttachments.length === 0)}
                                         className="btn-clay bg-purple-500 border-purple-700 text-white hover:bg-purple-400 py-4 text-base font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Sparkles size={16} />
-                                        AI Breakdown
+                                        {breakdownAttachments.length > 0 ? 'Analyze & Breakdown' : 'AI Breakdown'}
                                     </button>
                                 </div>
 
@@ -1027,6 +1141,17 @@ export default function ProductiveView() {
                     </div>
                 </div>
             </div>
+
+            {/* Breakdown Preview Modal */}
+            <BreakdownPreviewModal
+                isOpen={showBreakdownPreview}
+                tasks={previewTasks}
+                isLoading={isLoading}
+                originalInput={breakdownInput || inputValue}
+                onAccept={handleAcceptBreakdown}
+                onReprompt={handleRepromptBreakdown}
+                onCancel={handleCancelBreakdown}
+            />
         </div>
     );
 }
@@ -1175,6 +1300,7 @@ function TaskRow({
                     </div>
                 </div>
             )}
+
         </div>
     );
 }

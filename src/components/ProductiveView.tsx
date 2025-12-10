@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import {
     ArrowLeft,
+    ArrowUpCircle,
     BatteryWarning,
     Play,
     Pause,
@@ -97,6 +98,7 @@ export default function ProductiveView() {
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [showCompleted, setShowCompleted] = useState(false);
     const [showTiredModal, setShowTiredModal] = useState(false);
+    const [isClosingTiredModal, setIsClosingTiredModal] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
     const [showBacklog, setShowBacklog] = useState(false);
@@ -330,8 +332,31 @@ export default function ProductiveView() {
         setDraggedIndex(null);
     };
 
+    // Promote task from Backlog to Today's Focus (top position)
+    // The last task in Today's Focus (index 2) automatically moves to Backlog
+    const handlePromoteToFocus = (taskId: string) => {
+        const taskIndex = tasks.findIndex(t => t.id === taskId);
+        if (taskIndex <= 2) return; // Already in Today's Focus
+
+        const newTasks = [...tasks];
+        const taskToPromote = newTasks.splice(taskIndex, 1)[0];
+        newTasks.unshift(taskToPromote); // Add to the very top
+        
+        setTasks(newTasks);
+        toast.success("Task promoted to Today's Focus! 🎯");
+    };
+
     const handleTiredClick = () => {
         setShowTiredModal(true);
+    };
+
+    // Smooth close handler for Tired Modal
+    const handleCloseTiredModal = () => {
+        setIsClosingTiredModal(true);
+        setTimeout(() => {
+            setShowTiredModal(false);
+            setIsClosingTiredModal(false);
+        }, 300); // Match animation duration
     };
 
     const getEncouragement = () => {
@@ -429,33 +454,80 @@ export default function ProductiveView() {
             {/* Productive Chat */}
             <ProductiveChat />
 
-            {/* Tired Modal */}
+            {/* Tired Modal - Enhanced with animations */}
             {showTiredModal && (
-                <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
-                    <div className="bg-white rounded-[40px] p-8 max-w-md w-full text-center shadow-2xl border border-white/50">
-                        <div className="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-soft-orange animate-bounce">
-                            <span className="text-5xl">🥱</span>
-                        </div>
-                        <h3 className="text-3xl font-black text-slate-800 mb-4">Running on Fumes?</h3>
-                        <p className="text-slate-500 mb-8 leading-relaxed text-lg font-medium">
-                            {getEncouragement()}
-                        </p>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => {
-                                    setShowTiredModal(false);
-                                    setMode("burnout");
-                                }}
-                                className="flex-1 btn-clay btn-clay-white py-4 text-slate-600"
-                            >
-                                Switch to Decompress
-                            </button>
-                            <button
-                                onClick={() => setShowTiredModal(false)}
-                                className="flex-1 btn-clay btn-clay-blue py-4"
-                            >
-                                I'm Good Now
-                            </button>
+                <div className={`fixed inset-0 bg-gradient-to-br from-blue-900/15 via-slate-900/10 to-indigo-900/15 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-all duration-300 ${isClosingTiredModal ? 'opacity-0' : 'animate-fadeIn'}`}>
+                    {/* Floating particles background */}
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                        <div className="absolute top-[10%] left-[15%] w-4 h-4 bg-blue-300/30 rounded-full animate-float" />
+                        <div className="absolute top-[20%] right-[20%] w-3 h-3 bg-sky-300/30 rounded-full animate-float animation-delay-1000" />
+                        <div className="absolute bottom-[30%] left-[25%] w-5 h-5 bg-indigo-300/25 rounded-full animate-float animation-delay-2000" />
+                        <div className="absolute top-[40%] right-[10%] w-2 h-2 bg-blue-200/40 rounded-full animate-float animation-delay-3000" />
+                        <div className="absolute bottom-[20%] right-[30%] w-4 h-4 bg-sky-200/30 rounded-full animate-float animation-delay-1500" />
+                        <div className="absolute top-[60%] left-[10%] w-3 h-3 bg-indigo-200/25 rounded-full animate-float animation-delay-2500" />
+                    </div>
+                    
+                    <div className={`bg-gradient-to-br from-white via-blue-50/30 to-sky-50/30 rounded-[48px] p-10 max-w-lg w-full text-center shadow-2xl border border-white/90 relative overflow-hidden transition-all duration-300 ${isClosingTiredModal ? 'opacity-0 scale-95 translate-y-4' : 'animate-slideUp'}`}>
+                        {/* Decorative gradient orbs */}
+                        <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-blue-100/40 to-sky-100/30 rounded-full blur-3xl" />
+                        <div className="absolute -bottom-16 -left-16 w-32 h-32 bg-gradient-to-tr from-indigo-100/30 to-blue-100/20 rounded-full blur-2xl" />
+                        
+                        <div className="relative z-10">
+                            {/* Animated icon container */}
+                            <div className="relative w-28 h-28 mx-auto mb-8">
+                                {/* Pulsing rings */}
+                                <div className="absolute inset-0 rounded-full bg-blue-100/50 animate-ping" style={{ animationDuration: '2s' }} />
+                                <div className="absolute inset-2 rounded-full bg-sky-50/60 animate-ping" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }} />
+                                
+                                {/* Icon */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-sky-100 rounded-full flex items-center justify-center shadow-lg border border-blue-100/50">
+                                    <span className="text-6xl animate-bounce" style={{ animationDuration: '2s' }}>🥱</span>
+                                </div>
+                            </div>
+                            
+                            {/* Title with gradient text */}
+                            <h3 className="text-4xl font-black mb-4 bg-gradient-to-r from-blue-600 via-sky-500 to-indigo-600 bg-clip-text text-transparent">
+                                Running on Fumes?
+                            </h3>
+                            
+                            {/* Encouragement message */}
+                            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 mb-6 border border-blue-100/50 shadow-sm">
+                                <p className="text-slate-600 leading-relaxed text-lg font-medium">
+                                    {getEncouragement()}
+                                </p>
+                            </div>
+                            
+                            {/* Motivational quote */}
+                            <p className="text-sm text-slate-400 italic mb-8 flex items-center justify-center gap-2">
+                                <span className="text-blue-400">✨</span>
+                                "Rest is not the opposite of productivity—it's the foundation of it."
+                                <span className="text-sky-400">✨</span>
+                            </p>
+                            
+                            {/* Action buttons */}
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={() => {
+                                        setShowTiredModal(false);
+                                        setMode("burnout");
+                                    }}
+                                    className="flex-1 group relative overflow-hidden bg-gradient-to-r from-slate-50 to-blue-50 hover:from-blue-50 hover:to-sky-50 rounded-2xl py-4 px-6 text-slate-600 font-bold transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border border-slate-200/80"
+                                >
+                                    <span className="relative z-10 flex items-center justify-center gap-2">
+                                        <span className="text-xl">🧘</span>
+                                        Switch to Decompress
+                                    </span>
+                                </button>
+                                <button
+                                    onClick={handleCloseTiredModal}
+                                    className="flex-1 group relative overflow-hidden bg-gradient-to-r from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600 rounded-2xl py-4 px-6 text-white font-bold transition-all duration-300 hover:shadow-lg hover:shadow-blue-300/40 hover:scale-[1.02]"
+                                >
+                                    <span className="relative z-10 flex items-center justify-center gap-2">
+                                        <span className="text-xl">💪</span>
+                                        I'm Good Now
+                                    </span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -682,10 +754,139 @@ export default function ProductiveView() {
                                 </p>
                             </div>
                         )}
+
+                        {/* ==================== BACKLOG (Moved to Left Column) ==================== */}
+                        {!isLoading && tasks.length > 3 && (
+                            <div className="bg-gradient-to-br from-slate-50 via-stone-50 to-orange-50/30 rounded-3xl p-4 border border-slate-200 shadow-sm">
+                                <button
+                                    onClick={() => setShowBacklog(!showBacklog)}
+                                    className="w-full flex items-center justify-between p-3 hover:bg-white/70 rounded-xl transition-all"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-gradient-to-br from-slate-200 to-slate-300 rounded-xl flex items-center justify-center shadow-inner">
+                                            <span className="text-lg">📦</span>
+                                        </div>
+                                        <div className="text-left">
+                                            <span className="font-bold text-slate-700 block">Backlog</span>
+                                            <span className="text-xs text-slate-500">{tasks.length - 3} more tasks waiting</span>
+                                        </div>
+                                    </div>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${showBacklog ? 'bg-slate-200 rotate-180' : 'bg-slate-100'}`}>
+                                        <ChevronDown size={18} className="text-slate-500" />
+                                    </div>
+                                </button>
+
+                                {showBacklog && (
+                                    <div className="mt-4 space-y-2 animate-slideDown max-h-64 overflow-y-auto pr-1">
+                                        {tasks.slice(3).map((task, sliceIndex) => {
+                                            const originalIndex = sliceIndex + 3;
+                                            return (
+                                                <div 
+                                                    key={task.id}
+                                                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all cursor-pointer group"
+                                                    onClick={() => handlePlayTask(task)}
+                                                >
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handlePlayTask(task);
+                                                        }}
+                                                        className="w-8 h-8 bg-blue-100 group-hover:bg-blue-500 text-blue-600 group-hover:text-white rounded-full flex items-center justify-center transition-all shadow-sm"
+                                                    >
+                                                        <Play size={12} fill="currentColor" />
+                                                    </button>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-medium text-slate-700 truncate">{task.action}</p>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-xs text-slate-400">⏱ {task.duration}m</span>
+                                                            <span className={`text-[10px] px-2 py-0.5 rounded-full ${getTagColor(task.energy)}`}>{task.energy}</span>
+                                                        </div>
+                                                    </div>
+                                                    {/* Promote to Today's Focus Button */}
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handlePromoteToFocus(task.id);
+                                                        }}
+                                                        className="w-8 h-8 bg-green-100 hover:bg-green-500 text-green-600 hover:text-white rounded-full flex items-center justify-center transition-all shadow-sm opacity-0 group-hover:opacity-100"
+                                                        title="Promote to Today's Focus"
+                                                    >
+                                                        <ArrowUpCircle size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDeleteTask(task.id);
+                                                        }}
+                                                        className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
-                    {/* ==================== RIGHT COLUMN: MASTER LIST ==================== */}
+                    {/* ==================== RIGHT COLUMN: TODAY'S FOCUS & INPUT ==================== */}
                     <div className="lg:col-span-2 space-y-6">
+
+                        {/* ==================== TODAY'S FOCUS (Top 3) - NOW AT TOP ==================== */}
+                        {!isLoading && tasks.length > 0 && (
+                            <div className="bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 rounded-[32px] p-6 shadow-xl border border-blue-100/50 relative overflow-hidden">
+                                {/* Decorative Background */}
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-200/20 to-purple-200/20 rounded-full blur-3xl" />
+                                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-cyan-200/20 to-blue-200/20 rounded-full blur-2xl" />
+                                
+                                <div className="relative z-10">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-2xl font-black text-slate-800 flex items-center gap-3">
+                                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg ring-4 ring-white">
+                                                <span className="text-2xl">🎯</span>
+                                            </div>
+                                            Today's Focus
+                                            <span className="text-sm font-bold text-white bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-1 rounded-full shadow-sm">
+                                                Top 3
+                                            </span>
+                                        </h3>
+                                        <p className="text-sm text-slate-400 font-medium flex items-center gap-2 bg-white/80 px-3 py-2 rounded-full">
+                                            <Play size={12} className="text-blue-500" /> Click to start
+                                        </p>
+                                    </div>
+
+                                    {/* Top 3 Tasks - Highlighted */}
+                                    <div className="space-y-4">
+                                        {tasks.slice(0, 3).map((task, index) => (
+                                            <div key={task.id} className="relative pl-4">
+                                                {/* Priority Badge */}
+                                                <div className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white text-sm font-black shadow-lg ring-4 ring-white transform rotate-3 hover:rotate-0 transition-transform">
+                                                    {index + 1}
+                                                </div>
+                                                <TaskRow
+                                                    task={task}
+                                                    index={index}
+                                                    isActive={activeTask?.id === task.id}
+                                                    isExpanded={expandedTaskId === task.id}
+                                                    onPlay={() => handlePlayTask(task)}
+                                                    onToggle={() => handleToggleTaskComplete(task.id)}
+                                                    onDelete={() => handleDeleteTask(task.id)}
+                                                    onExpand={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
+                                                    onDragStart={handleDragStart}
+                                                    onDragEnter={handleDragEnter}
+                                                    onDragEnd={handleDragEnd}
+                                                    isDragging={draggedIndex === index}
+                                                    getTagColor={getTagColor}
+                                                    isTopFocus={true}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Smart Omnibar Input - Disabled when Soft Locked */}
                         {isSoftLocked ? (
@@ -791,97 +992,6 @@ export default function ProductiveView() {
                                     <p className="font-bold text-amber-700">Task limit reached ({MAX_TASKS} tasks)</p>
                                     <p className="text-sm text-amber-600">Complete some tasks before adding more. Quality over quantity!</p>
                                 </div>
-                            </div>
-                        )}
-
-                        {/* ==================== TODAY'S FOCUS (Top 3) ==================== */}
-                        {!isLoading && tasks.length > 0 && (
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between px-2">
-                                    <h3 className="text-xl font-black text-slate-700 flex items-center gap-2">
-                                        <span className="text-2xl">🎯</span>
-                                        Today's Focus
-                                        <span className="text-sm font-medium text-blue-500 bg-blue-50 px-2 py-1 rounded-full">
-                                            Top 3
-                                        </span>
-                                    </h3>
-                                    <p className="text-sm text-slate-400 font-medium">
-                                        Click <Play size={12} className="inline mx-1" /> to start
-                                    </p>
-                                </div>
-
-                                {/* Top 3 Tasks - Highlighted */}
-                                <div className="space-y-3">
-                                    {tasks.slice(0, 3).map((task, index) => (
-                                        <div key={task.id} className="relative">
-                                            {/* Priority Badge */}
-                                            <div className="absolute -left-2 -top-2 z-10 w-7 h-7 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-black shadow-lg">
-                                                {index + 1}
-                                            </div>
-                                            <TaskRow
-                                                task={task}
-                                                index={index}
-                                                isActive={activeTask?.id === task.id}
-                                                isExpanded={expandedTaskId === task.id}
-                                                onPlay={() => handlePlayTask(task)}
-                                                onToggle={() => handleToggleTaskComplete(task.id)}
-                                                onDelete={() => handleDeleteTask(task.id)}
-                                                onExpand={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
-                                                onDragStart={handleDragStart}
-                                                onDragEnter={handleDragEnter}
-                                                onDragEnd={handleDragEnd}
-                                                isDragging={draggedIndex === index}
-                                                getTagColor={getTagColor}
-                                                isTopFocus={true}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* ==================== BACKLOG (Tasks 4+) ==================== */}
-                        {!isLoading && tasks.length > 3 && (
-                            <div className="bg-slate-50 rounded-3xl p-4 border border-slate-200">
-                                <button
-                                    onClick={() => setShowBacklog(!showBacklog)}
-                                    className="w-full flex items-center justify-between p-2 hover:bg-slate-100 rounded-xl transition-colors"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-lg">📦</span>
-                                        <span className="font-bold text-slate-600">
-                                            Backlog ({tasks.length - 3} more tasks)
-                                        </span>
-                                    </div>
-                                    {showBacklog ? <ChevronUp size={20} className="text-slate-400" /> : <ChevronDown size={20} className="text-slate-400" />}
-                                </button>
-
-                                {showBacklog && (
-                                    <div className="mt-4 space-y-3 animate-slideDown">
-                                        {tasks.slice(3).map((task, sliceIndex) => {
-                                            const originalIndex = sliceIndex + 3;
-                                            return (
-                                                <TaskRow
-                                                    key={task.id}
-                                                    task={task}
-                                                    index={originalIndex}
-                                                    isActive={activeTask?.id === task.id}
-                                                    isExpanded={expandedTaskId === task.id}
-                                                    onPlay={() => handlePlayTask(task)}
-                                                    onToggle={() => handleToggleTaskComplete(task.id)}
-                                                    onDelete={() => handleDeleteTask(task.id)}
-                                                    onExpand={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
-                                                    onDragStart={handleDragStart}
-                                                    onDragEnter={handleDragEnter}
-                                                    onDragEnd={handleDragEnd}
-                                                    isDragging={draggedIndex === originalIndex}
-                                                    getTagColor={getTagColor}
-                                                    isTopFocus={false}
-                                                />
-                                            );
-                                        })}
-                                    </div>
-                                )}
                             </div>
                         )}
 
@@ -1075,17 +1185,13 @@ function TaskRow({
                 </button>
             </div>
 
-            {/* Expanded State - Shows Details */}
+            {/* Expanded State - Shows Details BELOW the entire row */}
             {isExpanded && (
-                <div className="px-4 pb-4 animate-slideDown border-t border-slate-100">
-                    <div className="pt-4 pl-12">
-                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                            Task Details
-                        </h4>
-                        <p className="text-sm text-slate-600 leading-relaxed mb-3">
+                <div className="px-4 pb-4 ml-[88px] animate-slideDown">
+                    <div className="pt-3 border-t border-slate-100">
+                        <p className="text-sm text-slate-600 leading-relaxed mb-2">
                             {task.summary || "No additional details available."}
                         </p>
-
                         {task.source && (
                             <div className="flex items-center gap-2 text-xs text-slate-400">
                                 <span className="font-bold">Source:</span>

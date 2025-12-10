@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { Paperclip, X, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export interface FileAttachment {
     data: string;      // Base64 encoded
@@ -52,7 +53,7 @@ export default function FileUploadButton({
 
         // Validate file size
         if (file.size > maxSizeMB * 1024 * 1024) {
-            console.warn(`File too large: ${file.name}`);
+            toast.error(`File "${file.name}" exceeds ${maxSizeMB}MB limit. Please choose a smaller file.`);
             return null;
         }
 

@@ -107,6 +107,11 @@ export default function ProductiveView() {
     const [showSoftLock, setShowSoftLock] = useState(false);
     const SOFT_LOCK_THRESHOLD = 90 * 60; // 90 minutes in seconds
 
+    // Rest timer state
+    const [isRestMode, setIsRestMode] = useState(false);
+    const [restTimeLeft, setRestTimeLeft] = useState(10 * 60); // 10 minutes default rest
+    const REST_DURATION = 10 * 60; // 10 minutes in seconds
+
     // UI state
     const [inputValue, setInputValue] = useState("");
     const [selectedDuration, setSelectedDuration] = useState(25); // Default 25 minutes
@@ -154,9 +159,18 @@ export default function ProductiveView() {
         }
     }, [previousMode, isAnxious]);
 
+    // Request notification permission on mount
+    useEffect(() => {
+        if (typeof window !== "undefined" && "Notification" in window) {
+            if (Notification.permission === "default") {
+                Notification.requestPermission();
+            }
+        }
+    }, []);
+
     // Timer logic
     useEffect(() => {
-        if (isRunning && timeLeft > 0) {
+        if (isRunning && timeLeft > 0 && !isRestMode) {
             intervalRef.current = setInterval(() => {
                 setTimeLeft((prev) => {
                     if (prev <= 1) {
@@ -169,13 +183,17 @@ export default function ProductiveView() {
                 // Track total work time for 90-minute soft lock
                 setTotalWorkTime((prev) => {
                     const newTotal = prev + 1;
-                    // Trigger soft lock at 90 minutes
+                    // Trigger rest mode at 90 minutes
                     if (newTotal >= SOFT_LOCK_THRESHOLD && !showSoftLock) {
                         setShowSoftLock(true);
-                        setIsRunning(false); // Pause timer
-                        toast.info("You've been working for 90 minutes! Time for a break.", {
+                        setIsRunning(false);
+                        setIsRestMode(true);
+                        setRestTimeLeft(REST_DURATION);
+                        toast.info("🌿 You've been working for 90 minutes! Starting rest timer.", {
                             duration: 5000,
                         });
+                        // Play notification
+                        new Audio("/notification.mp3").play().catch(() => { });
                     }
                     return newTotal;
                 });
@@ -187,12 +205,51 @@ export default function ProductiveView() {
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
-    }, [isRunning, timeLeft, showSoftLock]);
+    }, [isRunning, timeLeft, showSoftLock, isRestMode]);
+
+    // Rest timer logic
+    useEffect(() => {
+        let restInterval: NodeJS.Timeout | null = null;
+
+        if (isRestMode && restTimeLeft > 0) {
+            restInterval = setInterval(() => {
+                setRestTimeLeft((prev) => {
+                    if (prev <= 1) {
+                        // Rest complete
+                        setIsRestMode(false);
+                        setShowSoftLock(false);
+                        setTotalWorkTime(0); // Reset work time
+                        toast.success("✨ Rest complete! You're refreshed and ready to go!");
+                        new Audio("/notification.mp3").play().catch(() => { });
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+
+        return () => {
+            if (restInterval) clearInterval(restInterval);
+        };
+    }, [isRestMode, restTimeLeft]);
 
     const handleTimerComplete = () => {
         setIsRunning(false);
         toast.success("Time's up! 🎉 Great focus session!");
+
+        // Play notification sound
         new Audio("/notification.mp3").play().catch(() => { });
+
+        // Show browser notification if permitted
+        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+            const taskName = activeTask?.action || "Focus session";
+            new Notification("⏰ Timer Complete!", {
+                body: `Your ${sessionDuration} minute session for "${taskName}" is complete!`,
+                icon: "/favicon.ico",
+                tag: "synapse-timer",
+                requireInteraction: true, // Keeps notification until user dismisses
+            });
+        }
     };
 
     const handleToggleTimer = () => {
@@ -549,76 +606,128 @@ export default function ProductiveView() {
                 </div>
             )}
 
-            {/* Soft Lock Modal - Triggered after 90 minutes of work */}
+            {/* Soft Lock / Rest Timer Modal - Triggered after 90 minutes of work */}
             {showSoftLock && (
                 <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
                     <div className="bg-white rounded-[40px] p-8 max-w-lg w-full text-center shadow-2xl border border-white/50">
                         {/* Icon */}
-                        <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-                            <span className="text-5xl">☕</span>
+                        <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg ${isRestMode ? 'bg-green-100' : 'bg-blue-100'}`}>
+                            <span className="text-5xl">{isRestMode ? '🧘' : '☕'}</span>
                         </div>
 
                         <h3 className="text-3xl font-black text-slate-800 mb-3">
-                            Time for a Break!
+                            {isRestMode ? 'Rest Mode Active' : 'Time for a Break!'}
                         </h3>
 
-                        <p className="text-slate-500 mb-2 text-lg font-medium">
-                            You've been focusing for <span className="font-black text-blue-600">90 minutes</span> straight.
-                        </p>
-
-                        <p className="text-slate-400 mb-6 leading-relaxed">
-                            Your brain needs rest to consolidate learning and maintain peak performance.
-                            A short break now will boost your productivity later!
-                        </p>
-
-                        {/* Work Stats */}
-                        <div className="bg-slate-50 rounded-2xl p-4 mb-6 border border-slate-100">
-                            <div className="flex items-center justify-center gap-6">
-                                <div className="text-center">
-                                    <p className="text-3xl font-black text-blue-600">
-                                        {Math.floor(totalWorkTime / 60)}
-                                    </p>
-                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                        Minutes Worked
+                        {isRestMode ? (
+                            <>
+                                {/* Rest Timer Display */}
+                                <div className="mb-6">
+                                    <div className="text-6xl font-black text-green-600 mb-2">
+                                        {Math.floor(restTimeLeft / 60)}:{String(restTimeLeft % 60).padStart(2, '0')}
+                                    </div>
+                                    <p className="text-slate-500 font-medium">
+                                        Relax and recharge your focus energy
                                     </p>
                                 </div>
-                                <div className="w-px h-12 bg-slate-200" />
-                                <div className="text-center">
-                                    <p className="text-3xl font-black text-green-600">
-                                        {completedTasks.length}
-                                    </p>
-                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                        Tasks Done
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
 
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => {
-                                    setShowSoftLock(false);
-                                    setTotalWorkTime(0);
-                                    setMode("burnout");
-                                }}
-                                className="flex-1 btn-clay bg-green-500 border-green-700 text-white hover:bg-green-400 py-4"
-                            >
-                                🧘 Take a Break
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowSoftLock(false);
-                                    setTotalWorkTime(0);
-                                    setIsRunning(true);
-                                }}
-                                className="flex-1 btn-clay btn-clay-white py-4 text-slate-600"
-                            >
-                                ⚡ Keep Going
-                            </button>
-                        </div>
+                                {/* Progress Bar */}
+                                <div className="w-full bg-slate-100 rounded-full h-3 mb-6 overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full transition-all duration-1000"
+                                        style={{ width: `${((REST_DURATION - restTimeLeft) / REST_DURATION) * 100}%` }}
+                                    />
+                                </div>
+
+                                {/* Quick suggestions */}
+                                <div className="bg-green-50 rounded-2xl p-4 mb-6 border border-green-100">
+                                    <p className="text-sm font-bold text-green-700 mb-2">💡 Rest ideas:</p>
+                                    <p className="text-xs text-green-600">Stretch • Drink water • Look away from screen • Deep breaths</p>
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => {
+                                            setIsRestMode(false);
+                                            setShowSoftLock(false);
+                                            setTotalWorkTime(0);
+                                            setMode("burnout");
+                                        }}
+                                        className="flex-1 btn-clay bg-green-500 border-green-700 text-white hover:bg-green-400 py-4"
+                                    >
+                                        🌿 Go to Decompress
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setIsRestMode(false);
+                                            setShowSoftLock(false);
+                                            setTotalWorkTime(0);
+                                        }}
+                                        className="flex-1 btn-clay btn-clay-white py-4 text-slate-600"
+                                    >
+                                        ⏭ Skip Rest
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <p className="text-slate-500 mb-2 text-lg font-medium">
+                                    You've been focusing for <span className="font-black text-blue-600">90 minutes</span> straight.
+                                </p>
+
+                                <p className="text-slate-400 mb-6 leading-relaxed">
+                                    Your brain needs rest to consolidate learning and maintain peak performance.
+                                </p>
+
+                                {/* Work Stats */}
+                                <div className="bg-slate-50 rounded-2xl p-4 mb-6 border border-slate-100">
+                                    <div className="flex items-center justify-center gap-6">
+                                        <div className="text-center">
+                                            <p className="text-3xl font-black text-blue-600">
+                                                {Math.floor(totalWorkTime / 60)}
+                                            </p>
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                                Minutes Worked
+                                            </p>
+                                        </div>
+                                        <div className="w-px h-12 bg-slate-200" />
+                                        <div className="text-center">
+                                            <p className="text-3xl font-black text-green-600">
+                                                {completedTasks.length}
+                                            </p>
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                                Tasks Done
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => {
+                                            setIsRestMode(true);
+                                            setRestTimeLeft(REST_DURATION);
+                                        }}
+                                        className="flex-1 btn-clay bg-green-500 border-green-700 text-white hover:bg-green-400 py-4"
+                                    >
+                                        🧘 Start Rest Timer
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setShowSoftLock(false);
+                                            setTotalWorkTime(0);
+                                            setIsRunning(true);
+                                        }}
+                                        className="flex-1 btn-clay btn-clay-white py-4 text-slate-600"
+                                    >
+                                        ⚡ Keep Going
+                                    </button>
+                                </div>
+                            </>
+                        )}
 
                         <p className="text-xs text-slate-400 mt-4 font-medium">
-                            Tip: Short breaks every 90 min improve focus by up to 30%
+                            {isRestMode ? 'Timer will auto-complete when done' : 'Tip: Short breaks every 90 min improve focus by up to 30%'}
                         </p>
                     </div>
                 </div>
@@ -915,7 +1024,10 @@ export default function ProductiveView() {
                                             const newFiles: FileAttachment[] = [];
                                             for (let i = 0; i < e.target.files.length && breakdownAttachments.length + newFiles.length < 3; i++) {
                                                 const file = e.target.files[i];
-                                                if (file.size > 10 * 1024 * 1024) continue;
+                                                if (file.size > 10 * 1024 * 1024) {
+                                                    toast.error(`File "${file.name}" exceeds 10MB limit. Please choose a smaller file.`);
+                                                    continue;
+                                                }
                                                 const reader = new FileReader();
                                                 const result = await new Promise<string>((resolve) => {
                                                     reader.onload = (ev) => resolve(ev.target?.result as string);

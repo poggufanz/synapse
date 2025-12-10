@@ -1,7 +1,7 @@
 "use client";
 
-import FocusCockpit from "@/components/FocusCockpit";
+import ProductiveView from "@/components/ProductiveView";
 
-export default function FocusCockpitDemo() {
-    return <FocusCockpit />;
+export default function ProductiveViewDemo() {
+    return <ProductiveView />;
 }

@@ -14,6 +14,9 @@ const merriweather = Merriweather({
 export const metadata: Metadata = {
   title: "Synapse",
   description: "AI-Powered Energy Management",
+  icons: {
+    icon: "/images/LOGO.png",
+  },
 };
 
 export default function RootLayout({
@@ -25,7 +28,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${nunito.className} ${playfair.variable} ${merriweather.variable}`}>
         {children}
-        <Toaster position="top-center" />
+        <Toaster position="top-right" />
       </body>
     </html>
   );

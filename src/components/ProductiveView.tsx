@@ -3,11 +3,10 @@
 import { useEnergyStore } from "@/store/useEnergyStore";
 import { useAppStore } from "@/store/useAppStore";
 import { useSmartTasks } from "@/hooks/useSmartTasks";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { toast } from "sonner";
 import {
     ArrowLeft,
-    ArrowUpCircle,
     BatteryWarning,
     Play,
     Pause,
@@ -17,10 +16,17 @@ import {
     Circle,
     ChevronDown,
     ChevronUp,
-    Sparkles
+    Sparkles,
+    Calendar,
+    Clock,
+    Tag
 } from "lucide-react";
 import ProductiveChat from "./ProductiveChat";
 import IdeaVault from "./IdeaVault";
+import { parseTaskInput, ParsedTask } from "@/utils/taskNlpParser";
+import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
+import FileUploadButton, { FileAttachment } from "./FileUploadButton";
+import BreakdownPreviewModal, { PreviewTask } from "./BreakdownPreviewModal";
 
 interface MicroMission {
     id: string;
@@ -50,6 +56,9 @@ export default function ProductiveView() {
     // Soft Lock: When exhausted, disable task input and show rest message
     const isSoftLocked = moodState === "exhausted";
     const isAnxious = moodState === "anxious";
+
+    // Google Calendar integration
+    const { syncTask: syncToCalendar, isConnected: isCalendarConnected } = useGoogleCalendar();
 
     // Convert store Task to MicroMission format for display
     const tasks: MicroMission[] = rawTasks.map(t => ({
@@ -86,11 +95,22 @@ export default function ProductiveView() {
     const [timeLeft, setTimeLeft] = useState(25 * 60); // seconds
     const [isRunning, setIsRunning] = useState(false);
     const [sessionDuration, setSessionDuration] = useState(25); // minutes
+    const [breakdownAttachments, setBreakdownAttachments] = useState<FileAttachment[]>([]);
+
+    // Breakdown Preview Modal state
+    const [showBreakdownPreview, setShowBreakdownPreview] = useState(false);
+    const [previewTasks, setPreviewTasks] = useState<PreviewTask[]>([]);
+    const [breakdownInput, setBreakdownInput] = useState("");
 
     // 90-minute Soft Lock state
     const [totalWorkTime, setTotalWorkTime] = useState(0); // in seconds
     const [showSoftLock, setShowSoftLock] = useState(false);
     const SOFT_LOCK_THRESHOLD = 90 * 60; // 90 minutes in seconds
+
+    // Rest timer state
+    const [isRestMode, setIsRestMode] = useState(false);
+    const [restTimeLeft, setRestTimeLeft] = useState(10 * 60); // 10 minutes default rest
+    const REST_DURATION = 10 * 60; // 10 minutes in seconds
 
     // UI state
     const [inputValue, setInputValue] = useState("");
@@ -98,13 +118,18 @@ export default function ProductiveView() {
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [showCompleted, setShowCompleted] = useState(false);
     const [showTiredModal, setShowTiredModal] = useState(false);
-    const [isClosingTiredModal, setIsClosingTiredModal] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
     const [showBacklog, setShowBacklog] = useState(false);
 
     // Task limit constant
     const MAX_TASKS = 10;
+
+    // NLP parsing of input - live preview
+    const parsedTask = useMemo(() => {
+        if (!inputValue.trim()) return null;
+        return parseTaskInput(inputValue);
+    }, [inputValue]);
 
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -134,9 +159,18 @@ export default function ProductiveView() {
         }
     }, [previousMode, isAnxious]);
 
+    // Request notification permission on mount
+    useEffect(() => {
+        if (typeof window !== "undefined" && "Notification" in window) {
+            if (Notification.permission === "default") {
+                Notification.requestPermission();
+            }
+        }
+    }, []);
+
     // Timer logic
     useEffect(() => {
-        if (isRunning && timeLeft > 0) {
+        if (isRunning && timeLeft > 0 && !isRestMode) {
             intervalRef.current = setInterval(() => {
                 setTimeLeft((prev) => {
                     if (prev <= 1) {
@@ -149,13 +183,17 @@ export default function ProductiveView() {
                 // Track total work time for 90-minute soft lock
                 setTotalWorkTime((prev) => {
                     const newTotal = prev + 1;
-                    // Trigger soft lock at 90 minutes
+                    // Trigger rest mode at 90 minutes
                     if (newTotal >= SOFT_LOCK_THRESHOLD && !showSoftLock) {
                         setShowSoftLock(true);
-                        setIsRunning(false); // Pause timer
-                        toast.info("You've been working for 90 minutes! Time for a break.", {
+                        setIsRunning(false);
+                        setIsRestMode(true);
+                        setRestTimeLeft(REST_DURATION);
+                        toast.info("🌿 You've been working for 90 minutes! Starting rest timer.", {
                             duration: 5000,
                         });
+                        // Play notification
+                        new Audio("/notification.mp3").play().catch(() => { });
                     }
                     return newTotal;
                 });
@@ -167,12 +205,61 @@ export default function ProductiveView() {
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
-    }, [isRunning, timeLeft, showSoftLock]);
+    }, [isRunning, timeLeft, showSoftLock, isRestMode]);
+
+    // Rest timer logic
+    useEffect(() => {
+        let restInterval: NodeJS.Timeout | null = null;
+
+        if (isRestMode && restTimeLeft > 0) {
+            restInterval = setInterval(() => {
+                setRestTimeLeft((prev) => {
+                    if (prev <= 1) {
+                        // Rest complete
+                        setIsRestMode(false);
+                        setShowSoftLock(false);
+                        setTotalWorkTime(0); // Reset work time
+                        toast.success("✨ Rest complete! You're refreshed and ready to go!");
+                        new Audio("/notification.mp3").play().catch(() => { });
+                        
+                        // Auto-resume: Start timer again if there's an active task
+                        // We'll use a timeout to ensure state is updated
+                        setTimeout(() => {
+                            setIsRunning(true);
+                            toast.info("▶️ Resuming your focus session!", {
+                                duration: 3000,
+                            });
+                        }, 500);
+                        
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+
+        return () => {
+            if (restInterval) clearInterval(restInterval);
+        };
+    }, [isRestMode, restTimeLeft]);
 
     const handleTimerComplete = () => {
         setIsRunning(false);
         toast.success("Time's up! 🎉 Great focus session!");
+
+        // Play notification sound
         new Audio("/notification.mp3").play().catch(() => { });
+
+        // Show browser notification if permitted
+        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+            const taskName = activeTask?.action || "Focus session";
+            new Notification("⏰ Timer Complete!", {
+                body: `Your ${sessionDuration} minute session for "${taskName}" is complete!`,
+                icon: "/favicon.ico",
+                tag: "synapse-timer",
+                requireInteraction: true, // Keeps notification until user dismisses
+            });
+        }
     };
 
     const handleToggleTimer = () => {
@@ -197,16 +284,38 @@ export default function ProductiveView() {
         const completedTask = { ...activeTask, isCompleted: true };
         setCompletedTasks([...completedTasks, completedTask]);
 
-        // Remove from tasks
-        setTasks(tasks.filter((t) => t.id !== activeTask.id));
-        setActiveTask(null);
-        setIsRunning(false);
+        // Remove from tasks and get remaining tasks
+        const remainingTasks = tasks.filter((t) => t.id !== activeTask.id);
+        setTasks(remainingTasks);
 
         toast.success("Task crushed! 🔥");
         new Audio("/notification.mp3").play().catch(() => { });
+
+        // Auto-advance to next task if available
+        if (remainingTasks.length > 0) {
+            const nextTask = remainingTasks[0];
+            setActiveTask(nextTask);
+            setSessionDuration(nextTask.duration);
+            setTimeLeft(nextTask.duration * 60);
+            setIsRunning(true);
+            
+            // Notify user about next task
+            setTimeout(() => {
+                toast.info(`⏭️ Moving to next task: ${nextTask.action}`, {
+                    duration: 3000,
+                });
+            }, 1000);
+        } else {
+            // No more tasks
+            setActiveTask(null);
+            setIsRunning(false);
+            toast.success("🎉 All tasks completed! Great job!", {
+                duration: 5000,
+            });
+        }
     };
 
-    const handleBreakDown = async (text: string) => {
+    const handleBreakDown = async (text: string, reprompt?: string) => {
         // Soft Lock: Don't allow breaking down tasks when exhausted
         if (isSoftLocked) {
             toast.error("You're exhausted. Time to rest, not add more tasks. 🌙");
@@ -219,47 +328,85 @@ export default function ProductiveView() {
             return;
         }
 
+        // Save input for reprompt
+        if (!reprompt) {
+            setBreakdownInput(text);
+        }
+
         setIsLoading(true);
+        setShowBreakdownPreview(true); // Open modal immediately to show loading
+
         try {
             const response = await fetch("/api/breakdown", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ task: text }),
+                body: JSON.stringify({
+                    task: text,
+                    reprompt,
+                    attachments: breakdownAttachments.map(f => ({
+                        data: f.data,
+                        mimeType: f.mimeType,
+                        name: f.name,
+                    })),
+                }),
             });
 
             if (response.ok) {
-                const newTasks = await response.json();
-
-                // Check how many tasks we can add without exceeding limit
-                const remainingSlots = MAX_TASKS - tasks.length;
-                const tasksToAdd = newTasks.slice(0, remainingSlots);
-
-                if (tasksToAdd.length < newTasks.length) {
-                    toast.warning(`Only added ${tasksToAdd.length} of ${newTasks.length} tasks to stay within limit. 📋`);
-                }
-
-                // Convert to MicroMission format with AI flag
-                const formattedTasks = tasksToAdd.map((t: any, index: number) => ({
-                    id: Date.now().toString() + index,
-                    action: t.action,
-                    summary: t.summary || "",
-                    energy: t.energy || "Shallow Work",
-                    source: t.source || "AI Generated",
-                    duration: 25,
-                    isCompleted: false,
-                    isAIGenerated: true,
-                }));
-                setTasks([...tasks, ...formattedTasks]);
-                toast.success("Mission Deconstructed! 🚀");
+                const newTasks: PreviewTask[] = await response.json();
+                setPreviewTasks(newTasks);
+            } else {
+                toast.error("Failed to break down task. Please try again.");
+                setShowBreakdownPreview(false);
             }
         } catch (error) {
             console.error("Failed to break down task", error);
             toast.error("Failed to break down task. Please try again.");
+            setShowBreakdownPreview(false);
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleAcceptBreakdown = (acceptedTasks: PreviewTask[]) => {
+        // Check how many tasks we can add without exceeding limit
+        const remainingSlots = MAX_TASKS - tasks.length;
+        const tasksToAdd = acceptedTasks.slice(0, remainingSlots);
+
+        if (tasksToAdd.length < acceptedTasks.length) {
+            toast.warning(`Only added ${tasksToAdd.length} of ${acceptedTasks.length} tasks to stay within limit. 📋`);
+        }
+
+        // Convert to MicroMission format with AI flag
+        const formattedTasks = tasksToAdd.map((t, index) => ({
+            id: Date.now().toString() + index,
+            action: t.action,
+            summary: t.summary || "",
+            energy: t.energy || "Shallow Work",
+            source: t.source || "AI Generated",
+            duration: t.duration || 5,
+            isCompleted: false,
+            isAIGenerated: true,
+        }));
+
+        setTasks([...tasks, ...formattedTasks]);
+        toast.success("Micro-tasks added! Start with the first one! 🚀");
+
+        // Clear state
+        setBreakdownAttachments([]);
+        setInputValue("");
+        setShowBreakdownPreview(false);
+        setPreviewTasks([]);
+    };
+
+    const handleRepromptBreakdown = (feedback: string) => {
+        handleBreakDown(breakdownInput, feedback);
+    };
+
+    const handleCancelBreakdown = () => {
+        setShowBreakdownPreview(false);
+        setPreviewTasks([]);
     };
 
     const handleAddTask = () => {
@@ -277,20 +424,48 @@ export default function ProductiveView() {
             return;
         }
 
+        // Use NLP parsed data if available
+        const parsed = parsedTask || parseTaskInput(inputValue);
+
+        // Build summary with parsed info
+        let summaryParts: string[] = [];
+        if (parsed.dateText) summaryParts.push(`📅 ${parsed.dateText}`);
+        if (parsed.timeText) summaryParts.push(`⏰ ${parsed.timeText}`);
+        if (parsed.tag) summaryParts.push(parsed.tag);
+        const summary = summaryParts.length > 0
+            ? summaryParts.join(" • ")
+            : "Manual task - add details as you work";
+
         const newTask: MicroMission = {
             id: Date.now().toString(),
-            action: inputValue.trim(),
-            summary: "Manual task - add details as you work",
-            energy: "Shallow Work",
+            action: parsed.title,
+            summary: summary,
+            energy: parsed.tag === "#Work" ? "Deep Work" : "Shallow Work",
             source: "Manual",
-            duration: selectedDuration,
+            duration: parsed.duration || selectedDuration,
             isCompleted: false,
             isAIGenerated: false,
         };
 
         setTasks([newTask, ...tasks]);
         setInputValue("");
-        toast.success("Task added! 📝");
+
+        // Show confirmation with parsed details
+        if (parsed.dateText || parsed.timeText || parsed.tag) {
+            toast.success(`Task added! ${summaryParts.join(" ")} 📝`);
+        } else {
+            toast.success("Task added! 📝");
+        }
+
+        // Auto-sync to Google Calendar if task has scheduled time
+        if (parsed.hasScheduledTime && parsed.date && parsed.time) {
+            syncToCalendar(
+                parsed.title,
+                parsed.date,
+                parsed.time,
+                parsed.duration || selectedDuration
+            );
+        }
     };
 
     const handleDeleteTask = (id: string) => {
@@ -332,31 +507,8 @@ export default function ProductiveView() {
         setDraggedIndex(null);
     };
 
-    // Promote task from Backlog to Today's Focus (top position)
-    // The last task in Today's Focus (index 2) automatically moves to Backlog
-    const handlePromoteToFocus = (taskId: string) => {
-        const taskIndex = tasks.findIndex(t => t.id === taskId);
-        if (taskIndex <= 2) return; // Already in Today's Focus
-
-        const newTasks = [...tasks];
-        const taskToPromote = newTasks.splice(taskIndex, 1)[0];
-        newTasks.unshift(taskToPromote); // Add to the very top
-        
-        setTasks(newTasks);
-        toast.success("Task promoted to Today's Focus! 🎯");
-    };
-
     const handleTiredClick = () => {
         setShowTiredModal(true);
-    };
-
-    // Smooth close handler for Tired Modal
-    const handleCloseTiredModal = () => {
-        setIsClosingTiredModal(true);
-        setTimeout(() => {
-            setShowTiredModal(false);
-            setIsClosingTiredModal(false);
-        }, 300); // Match animation duration
     };
 
     const getEncouragement = () => {
@@ -454,155 +606,160 @@ export default function ProductiveView() {
             {/* Productive Chat */}
             <ProductiveChat />
 
-            {/* Tired Modal - Enhanced with animations */}
+            {/* Tired Modal */}
             {showTiredModal && (
-                <div className={`fixed inset-0 bg-gradient-to-br from-blue-900/15 via-slate-900/10 to-indigo-900/15 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-all duration-300 ${isClosingTiredModal ? 'opacity-0' : 'animate-fadeIn'}`}>
-                    {/* Floating particles background */}
-                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                        <div className="absolute top-[10%] left-[15%] w-4 h-4 bg-blue-300/30 rounded-full animate-float" />
-                        <div className="absolute top-[20%] right-[20%] w-3 h-3 bg-sky-300/30 rounded-full animate-float animation-delay-1000" />
-                        <div className="absolute bottom-[30%] left-[25%] w-5 h-5 bg-indigo-300/25 rounded-full animate-float animation-delay-2000" />
-                        <div className="absolute top-[40%] right-[10%] w-2 h-2 bg-blue-200/40 rounded-full animate-float animation-delay-3000" />
-                        <div className="absolute bottom-[20%] right-[30%] w-4 h-4 bg-sky-200/30 rounded-full animate-float animation-delay-1500" />
-                        <div className="absolute top-[60%] left-[10%] w-3 h-3 bg-indigo-200/25 rounded-full animate-float animation-delay-2500" />
-                    </div>
-                    
-                    <div className={`bg-gradient-to-br from-white via-blue-50/30 to-sky-50/30 rounded-[48px] p-10 max-w-lg w-full text-center shadow-2xl border border-white/90 relative overflow-hidden transition-all duration-300 ${isClosingTiredModal ? 'opacity-0 scale-95 translate-y-4' : 'animate-slideUp'}`}>
-                        {/* Decorative gradient orbs */}
-                        <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-blue-100/40 to-sky-100/30 rounded-full blur-3xl" />
-                        <div className="absolute -bottom-16 -left-16 w-32 h-32 bg-gradient-to-tr from-indigo-100/30 to-blue-100/20 rounded-full blur-2xl" />
-                        
-                        <div className="relative z-10">
-                            {/* Animated icon container */}
-                            <div className="relative w-28 h-28 mx-auto mb-8">
-                                {/* Pulsing rings */}
-                                <div className="absolute inset-0 rounded-full bg-blue-100/50 animate-ping" style={{ animationDuration: '2s' }} />
-                                <div className="absolute inset-2 rounded-full bg-sky-50/60 animate-ping" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }} />
-                                
-                                {/* Icon */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-sky-100 rounded-full flex items-center justify-center shadow-lg border border-blue-100/50">
-                                    <span className="text-6xl animate-bounce" style={{ animationDuration: '2s' }}>🥱</span>
-                                </div>
-                            </div>
-                            
-                            {/* Title with gradient text */}
-                            <h3 className="text-4xl font-black mb-4 bg-gradient-to-r from-blue-600 via-sky-500 to-indigo-600 bg-clip-text text-transparent">
-                                Running on Fumes?
-                            </h3>
-                            
-                            {/* Encouragement message */}
-                            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 mb-6 border border-blue-100/50 shadow-sm">
-                                <p className="text-slate-600 leading-relaxed text-lg font-medium">
-                                    {getEncouragement()}
-                                </p>
-                            </div>
-                            
-                            {/* Motivational quote */}
-                            <p className="text-sm text-slate-400 italic mb-8 flex items-center justify-center gap-2">
-                                <span className="text-blue-400">✨</span>
-                                "Rest is not the opposite of productivity—it's the foundation of it."
-                                <span className="text-sky-400">✨</span>
-                            </p>
-                            
-                            {/* Action buttons */}
-                            <div className="flex gap-4">
-                                <button
-                                    onClick={() => {
-                                        setShowTiredModal(false);
-                                        setMode("burnout");
-                                    }}
-                                    className="flex-1 group relative overflow-hidden bg-gradient-to-r from-slate-50 to-blue-50 hover:from-blue-50 hover:to-sky-50 rounded-2xl py-4 px-6 text-slate-600 font-bold transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border border-slate-200/80"
-                                >
-                                    <span className="relative z-10 flex items-center justify-center gap-2">
-                                        <span className="text-xl">🧘</span>
-                                        Switch to Decompress
-                                    </span>
-                                </button>
-                                <button
-                                    onClick={handleCloseTiredModal}
-                                    className="flex-1 group relative overflow-hidden bg-gradient-to-r from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600 rounded-2xl py-4 px-6 text-white font-bold transition-all duration-300 hover:shadow-lg hover:shadow-blue-300/40 hover:scale-[1.02]"
-                                >
-                                    <span className="relative z-10 flex items-center justify-center gap-2">
-                                        <span className="text-xl">💪</span>
-                                        I'm Good Now
-                                    </span>
-                                </button>
-                            </div>
+                <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+                    <div className="bg-white rounded-[40px] p-8 max-w-md w-full text-center shadow-2xl border border-white/50">
+                        <div className="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-soft-orange animate-bounce">
+                            <span className="text-5xl">🥱</span>
+                        </div>
+                        <h3 className="text-3xl font-black text-slate-800 mb-4">Running on Fumes?</h3>
+                        <p className="text-slate-500 mb-8 leading-relaxed text-lg font-medium">
+                            {getEncouragement()}
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowTiredModal(false);
+                                    setMode("burnout");
+                                }}
+                                className="flex-1 btn-clay btn-clay-white py-4 text-slate-600"
+                            >
+                                Switch to Decompress
+                            </button>
+                            <button
+                                onClick={() => setShowTiredModal(false)}
+                                className="flex-1 btn-clay btn-clay-blue py-4"
+                            >
+                                I'm Good Now
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Soft Lock Modal - Triggered after 90 minutes of work */}
+            {/* Soft Lock / Rest Timer Modal - Triggered after 90 minutes of work */}
             {showSoftLock && (
                 <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
                     <div className="bg-white rounded-[40px] p-8 max-w-lg w-full text-center shadow-2xl border border-white/50">
                         {/* Icon */}
-                        <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-                            <span className="text-5xl">☕</span>
+                        <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg ${isRestMode ? 'bg-green-100' : 'bg-blue-100'}`}>
+                            <span className="text-5xl">{isRestMode ? '🧘' : '☕'}</span>
                         </div>
 
                         <h3 className="text-3xl font-black text-slate-800 mb-3">
-                            Time for a Break!
+                            {isRestMode ? 'Rest Mode Active' : 'Time for a Break!'}
                         </h3>
 
-                        <p className="text-slate-500 mb-2 text-lg font-medium">
-                            You've been focusing for <span className="font-black text-blue-600">90 minutes</span> straight.
-                        </p>
-
-                        <p className="text-slate-400 mb-6 leading-relaxed">
-                            Your brain needs rest to consolidate learning and maintain peak performance.
-                            A short break now will boost your productivity later!
-                        </p>
-
-                        {/* Work Stats */}
-                        <div className="bg-slate-50 rounded-2xl p-4 mb-6 border border-slate-100">
-                            <div className="flex items-center justify-center gap-6">
-                                <div className="text-center">
-                                    <p className="text-3xl font-black text-blue-600">
-                                        {Math.floor(totalWorkTime / 60)}
-                                    </p>
-                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                        Minutes Worked
+                        {isRestMode ? (
+                            <>
+                                {/* Rest Timer Display */}
+                                <div className="mb-6">
+                                    <div className="text-6xl font-black text-green-600 mb-2">
+                                        {Math.floor(restTimeLeft / 60)}:{String(restTimeLeft % 60).padStart(2, '0')}
+                                    </div>
+                                    <p className="text-slate-500 font-medium">
+                                        Relax and recharge your focus energy
                                     </p>
                                 </div>
-                                <div className="w-px h-12 bg-slate-200" />
-                                <div className="text-center">
-                                    <p className="text-3xl font-black text-green-600">
-                                        {completedTasks.length}
-                                    </p>
-                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                        Tasks Done
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
 
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => {
-                                    setShowSoftLock(false);
-                                    setTotalWorkTime(0);
-                                    setMode("burnout");
-                                }}
-                                className="flex-1 btn-clay bg-green-500 border-green-700 text-white hover:bg-green-400 py-4"
-                            >
-                                🧘 Take a Break
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowSoftLock(false);
-                                    setTotalWorkTime(0);
-                                    setIsRunning(true);
-                                }}
-                                className="flex-1 btn-clay btn-clay-white py-4 text-slate-600"
-                            >
-                                ⚡ Keep Going
-                            </button>
-                        </div>
+                                {/* Progress Bar */}
+                                <div className="w-full bg-slate-100 rounded-full h-3 mb-6 overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full transition-all duration-1000"
+                                        style={{ width: `${((REST_DURATION - restTimeLeft) / REST_DURATION) * 100}%` }}
+                                    />
+                                </div>
+
+                                {/* Quick suggestions */}
+                                <div className="bg-green-50 rounded-2xl p-4 mb-6 border border-green-100">
+                                    <p className="text-sm font-bold text-green-700 mb-2">💡 Rest ideas:</p>
+                                    <p className="text-xs text-green-600">Stretch • Drink water • Look away from screen • Deep breaths</p>
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => {
+                                            setIsRestMode(false);
+                                            setShowSoftLock(false);
+                                            setTotalWorkTime(0);
+                                            setMode("burnout");
+                                        }}
+                                        className="flex-1 btn-clay bg-green-500 border-green-700 text-white hover:bg-green-400 py-4"
+                                    >
+                                        🌿 Go to Decompress
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setIsRestMode(false);
+                                            setShowSoftLock(false);
+                                            setTotalWorkTime(0);
+                                        }}
+                                        className="flex-1 btn-clay btn-clay-white py-4 text-slate-600"
+                                    >
+                                        ⏭ Skip Rest
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <p className="text-slate-500 mb-2 text-lg font-medium">
+                                    You've been focusing for <span className="font-black text-blue-600">90 minutes</span> straight.
+                                </p>
+
+                                <p className="text-slate-400 mb-6 leading-relaxed">
+                                    Your brain needs rest to consolidate learning and maintain peak performance.
+                                </p>
+
+                                {/* Work Stats */}
+                                <div className="bg-slate-50 rounded-2xl p-4 mb-6 border border-slate-100">
+                                    <div className="flex items-center justify-center gap-6">
+                                        <div className="text-center">
+                                            <p className="text-3xl font-black text-blue-600">
+                                                {Math.floor(totalWorkTime / 60)}
+                                            </p>
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                                Minutes Worked
+                                            </p>
+                                        </div>
+                                        <div className="w-px h-12 bg-slate-200" />
+                                        <div className="text-center">
+                                            <p className="text-3xl font-black text-green-600">
+                                                {completedTasks.length}
+                                            </p>
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                                Tasks Done
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => {
+                                            setIsRestMode(true);
+                                            setRestTimeLeft(REST_DURATION);
+                                        }}
+                                        className="flex-1 btn-clay bg-green-500 border-green-700 text-white hover:bg-green-400 py-4"
+                                    >
+                                        🧘 Start Rest Timer
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setShowSoftLock(false);
+                                            setTotalWorkTime(0);
+                                            setIsRunning(true);
+                                        }}
+                                        className="flex-1 btn-clay btn-clay-white py-4 text-slate-600"
+                                    >
+                                        ⚡ Keep Going
+                                    </button>
+                                </div>
+                            </>
+                        )}
 
                         <p className="text-xs text-slate-400 mt-4 font-medium">
-                            Tip: Short breaks every 90 min improve focus by up to 30%
+                            {isRestMode ? 'Timer will auto-complete when done' : 'Tip: Short breaks every 90 min improve focus by up to 30%'}
                         </p>
                     </div>
                 </div>
@@ -754,136 +911,53 @@ export default function ProductiveView() {
                                 </p>
                             </div>
                         )}
-
-                        {/* ==================== BACKLOG (Moved to Left Column) ==================== */}
-                        {!isLoading && tasks.length > 3 && (
-                            <div className="bg-gradient-to-br from-slate-50 via-stone-50 to-orange-50/30 rounded-3xl p-4 border border-slate-200 shadow-sm">
-                                <button
-                                    onClick={() => setShowBacklog(!showBacklog)}
-                                    className="w-full flex items-center justify-between p-3 hover:bg-white/70 rounded-xl transition-all"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-gradient-to-br from-slate-200 to-slate-300 rounded-xl flex items-center justify-center shadow-inner">
-                                            <span className="text-lg">📦</span>
-                                        </div>
-                                        <div className="text-left">
-                                            <span className="font-bold text-slate-700 block">Backlog</span>
-                                            <span className="text-xs text-slate-500">{tasks.length - 3} more tasks waiting</span>
-                                        </div>
-                                    </div>
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${showBacklog ? 'bg-slate-200 rotate-180' : 'bg-slate-100'}`}>
-                                        <ChevronDown size={18} className="text-slate-500" />
-                                    </div>
-                                </button>
-
-                                {showBacklog && (
-                                    <div className="mt-4 space-y-2 animate-slideDown max-h-64 overflow-y-auto pr-1">
-                                        {tasks.slice(3).map((task, sliceIndex) => {
-                                            const originalIndex = sliceIndex + 3;
-                                            return (
-                                                <div 
-                                                    key={task.id}
-                                                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all cursor-pointer group"
-                                                    onClick={() => handlePlayTask(task)}
-                                                >
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handlePlayTask(task);
-                                                        }}
-                                                        className="w-8 h-8 bg-blue-100 group-hover:bg-blue-500 text-blue-600 group-hover:text-white rounded-full flex items-center justify-center transition-all shadow-sm"
-                                                    >
-                                                        <Play size={12} fill="currentColor" />
-                                                    </button>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-medium text-slate-700 truncate">{task.action}</p>
-                                                        <div className="flex items-center gap-2 mt-1">
-                                                            <span className="text-xs text-slate-400">⏱ {task.duration}m</span>
-                                                            <span className={`text-[10px] px-2 py-0.5 rounded-full ${getTagColor(task.energy)}`}>{task.energy}</span>
-                                                        </div>
-                                                    </div>
-                                                    {/* Promote to Today's Focus Button */}
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handlePromoteToFocus(task.id);
-                                                        }}
-                                                        className="w-8 h-8 bg-green-100 hover:bg-green-500 text-green-600 hover:text-white rounded-full flex items-center justify-center transition-all shadow-sm opacity-0 group-hover:opacity-100"
-                                                        title="Promote to Today's Focus"
-                                                    >
-                                                        <ArrowUpCircle size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleDeleteTask(task.id);
-                                                        }}
-                                                        className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        )}
                     </div>
 
-                    {/* ==================== RIGHT COLUMN: TODAY'S FOCUS & INPUT ==================== */}
+                    {/* ==================== RIGHT COLUMN: MASTER LIST ==================== */}
                     <div className="lg:col-span-2 space-y-6">
 
-                        {/* ==================== TODAY'S FOCUS (Top 3) - NOW AT TOP ==================== */}
+                        {/* ==================== TODAY'S FOCUS (Top 3) ==================== */}
                         {!isLoading && tasks.length > 0 && (
-                            <div className="bg-gradient-to-br from-white via-blue-50/50 to-purple-50/50 rounded-[32px] p-6 shadow-xl border border-blue-100/50 relative overflow-hidden">
-                                {/* Decorative Background */}
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-200/20 to-purple-200/20 rounded-full blur-3xl" />
-                                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-cyan-200/20 to-blue-200/20 rounded-full blur-2xl" />
-                                
-                                <div className="relative z-10">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <h3 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-                                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg ring-4 ring-white">
-                                                <span className="text-2xl">🎯</span>
-                                            </div>
-                                            Today's Focus
-                                            <span className="text-sm font-bold text-white bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-1 rounded-full shadow-sm">
-                                                Top 3
-                                            </span>
-                                        </h3>
-                                        <p className="text-sm text-slate-400 font-medium flex items-center gap-2 bg-white/80 px-3 py-2 rounded-full">
-                                            <Play size={12} className="text-blue-500" /> Click to start
-                                        </p>
-                                    </div>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between px-2">
+                                    <h3 className="text-xl font-black text-slate-700 flex items-center gap-2">
+                                        <span className="text-2xl">🎯</span>
+                                        Today's Focus
+                                        <span className="text-sm font-medium text-blue-500 bg-blue-50 px-2 py-1 rounded-full">
+                                            Top 3
+                                        </span>
+                                    </h3>
+                                    <p className="text-sm text-slate-400 font-medium">
+                                        ▶ Click to start
+                                    </p>
+                                </div>
 
-                                    {/* Top 3 Tasks - Highlighted */}
-                                    <div className="space-y-4">
-                                        {tasks.slice(0, 3).map((task, index) => (
-                                            <div key={task.id} className="relative pl-4">
-                                                {/* Priority Badge */}
-                                                <div className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white text-sm font-black shadow-lg ring-4 ring-white transform rotate-3 hover:rotate-0 transition-transform">
-                                                    {index + 1}
-                                                </div>
-                                                <TaskRow
-                                                    task={task}
-                                                    index={index}
-                                                    isActive={activeTask?.id === task.id}
-                                                    isExpanded={expandedTaskId === task.id}
-                                                    onPlay={() => handlePlayTask(task)}
-                                                    onToggle={() => handleToggleTaskComplete(task.id)}
-                                                    onDelete={() => handleDeleteTask(task.id)}
-                                                    onExpand={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
-                                                    onDragStart={handleDragStart}
-                                                    onDragEnter={handleDragEnter}
-                                                    onDragEnd={handleDragEnd}
-                                                    isDragging={draggedIndex === index}
-                                                    getTagColor={getTagColor}
-                                                    isTopFocus={true}
-                                                />
+                                {/* Top 3 Tasks - Highlighted */}
+                                <div className="space-y-3">
+                                    {tasks.slice(0, 3).map((task, index) => (
+                                        <div key={task.id} className="relative">
+                                            {/* Priority Badge */}
+                                            <div className="absolute -left-2 -top-2 z-10 w-7 h-7 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-black shadow-lg">
+                                                {index + 1}
                                             </div>
-                                        ))}
-                                    </div>
+                                            <TaskRow
+                                                task={task}
+                                                index={index}
+                                                isActive={activeTask?.id === task.id}
+                                                isExpanded={expandedTaskId === task.id}
+                                                onPlay={() => handlePlayTask(task)}
+                                                onToggle={() => handleToggleTaskComplete(task.id)}
+                                                onDelete={() => handleDeleteTask(task.id)}
+                                                onExpand={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
+                                                onDragStart={handleDragStart}
+                                                onDragEnter={handleDragEnter}
+                                                onDragEnd={handleDragEnd}
+                                                isDragging={draggedIndex === index}
+                                                getTagColor={getTagColor}
+                                                isTopFocus={true}
+                                            />
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}
@@ -924,9 +998,45 @@ export default function ProductiveView() {
                                 <textarea
                                     value={inputValue}
                                     onChange={(e) => setInputValue(e.target.value)}
-                                    placeholder="What's on your mind? (Type a simple task or dump your stress here...)"
+                                    placeholder="Coba ketik: 'Meeting marketing senin jam 9 pagi' atau tugas biasa..."
                                     className="w-full h-32 p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:border-blue-400 focus:outline-none text-slate-800 font-medium resize-none transition-all text-base leading-relaxed mb-4"
                                 />
+
+                                {/* NLP Preview - Show parsed data */}
+                                {parsedTask && (parsedTask.dateText || parsedTask.timeText || parsedTask.tag) && (
+                                    <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-100">
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                            <Sparkles size={12} className="text-purple-500" />
+                                            Quick Parse Preview
+                                        </p>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {parsedTask.dateText && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold">
+                                                    <Calendar size={12} />
+                                                    {parsedTask.dateText}
+                                                </span>
+                                            )}
+                                            {parsedTask.timeText && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-bold">
+                                                    <Clock size={12} />
+                                                    {parsedTask.timeText}
+                                                </span>
+                                            )}
+                                            {parsedTask.tag && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold">
+                                                    <Tag size={12} />
+                                                    {parsedTask.tag}
+                                                </span>
+                                            )}
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold">
+                                                ⏱️ {parsedTask.duration}m
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-2">
+                                            <span className="font-medium">Task:</span> {parsedTask.title}
+                                        </p>
+                                    </div>
+                                )}
 
                                 {/* Duration Pills */}
                                 <div className="flex items-center gap-3 mb-4">
@@ -947,6 +1057,77 @@ export default function ProductiveView() {
                                     </div>
                                 </div>
 
+                                {/* File Attachments - Compact inline */}
+                                <div className="mb-4 flex items-center gap-3 flex-wrap">
+                                    {/* File Previews */}
+                                    {breakdownAttachments.map((file, index) => (
+                                        <div key={`${file.name}-${index}`} className="relative">
+                                            <div className="relative bg-slate-100 rounded-lg border border-slate-200 overflow-hidden flex items-center gap-2 pl-2 pr-1 py-1">
+                                                {file.preview ? (
+                                                    <img src={file.preview} alt={file.name} className="w-8 h-8 object-cover rounded" />
+                                                ) : (
+                                                    <div className="w-8 h-8 flex items-center justify-center bg-red-100 rounded">
+                                                        <span className="text-[10px] text-red-600 font-bold">PDF</span>
+                                                    </div>
+                                                )}
+                                                <span className="text-xs text-slate-600 font-medium max-w-[100px] truncate">{file.name}</span>
+                                                <button
+                                                    onClick={() => setBreakdownAttachments(breakdownAttachments.filter((_, i) => i !== index))}
+                                                    className="w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 text-xs"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {/* Attach Button */}
+                                    {breakdownAttachments.length < 3 && (
+                                        <button
+                                            onClick={() => document.getElementById('breakdown-file-input')?.click()}
+                                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors border-2 border-dashed border-slate-200 hover:border-slate-300"
+                                        >
+                                            📎 Attach file
+                                        </button>
+                                    )}
+
+                                    {/* Hidden File Input */}
+                                    <input
+                                        id="breakdown-file-input"
+                                        type="file"
+                                        accept="image/*,application/pdf"
+                                        multiple
+                                        onChange={async (e) => {
+                                            if (!e.target.files) return;
+                                            const newFiles: FileAttachment[] = [];
+                                            for (let i = 0; i < e.target.files.length && breakdownAttachments.length + newFiles.length < 3; i++) {
+                                                const file = e.target.files[i];
+                                                if (file.size > 10 * 1024 * 1024) {
+                                                    toast.error(`File "${file.name}" exceeds 10MB limit. Please choose a smaller file.`);
+                                                    continue;
+                                                }
+                                                const reader = new FileReader();
+                                                const result = await new Promise<string>((resolve) => {
+                                                    reader.onload = (ev) => resolve(ev.target?.result as string);
+                                                    reader.readAsDataURL(file);
+                                                });
+                                                newFiles.push({
+                                                    data: result.split(',')[1],
+                                                    mimeType: file.type,
+                                                    name: file.name,
+                                                    size: file.size,
+                                                    preview: file.type.startsWith('image/') ? result : undefined,
+                                                });
+                                            }
+                                            if (newFiles.length > 0) {
+                                                setBreakdownAttachments([...breakdownAttachments, ...newFiles]);
+                                            }
+                                            e.target.value = '';
+                                        }}
+                                        className="hidden"
+                                    />
+                                </div>
+
                                 {/* Action Buttons */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <button
@@ -958,11 +1139,11 @@ export default function ProductiveView() {
                                     </button>
                                     <button
                                         onClick={() => handleBreakDown(inputValue)}
-                                        disabled={isLoading || !inputValue.trim()}
+                                        disabled={isLoading || (!inputValue.trim() && breakdownAttachments.length === 0)}
                                         className="btn-clay bg-purple-500 border-purple-700 text-white hover:bg-purple-400 py-4 text-base font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Sparkles size={16} />
-                                        AI Breakdown
+                                        {breakdownAttachments.length > 0 ? 'Analyze & Breakdown' : 'AI Breakdown'}
                                     </button>
                                 </div>
 
@@ -992,6 +1173,51 @@ export default function ProductiveView() {
                                     <p className="font-bold text-amber-700">Task limit reached ({MAX_TASKS} tasks)</p>
                                     <p className="text-sm text-amber-600">Complete some tasks before adding more. Quality over quantity!</p>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* ==================== BACKLOG (Tasks 4+) ==================== */}
+                        {!isLoading && tasks.length > 3 && (
+                            <div className="bg-slate-50 rounded-3xl p-4 border border-slate-200">
+                                <button
+                                    onClick={() => setShowBacklog(!showBacklog)}
+                                    className="w-full flex items-center justify-between p-2 hover:bg-slate-100 rounded-xl transition-colors"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-lg">📦</span>
+                                        <span className="font-bold text-slate-600">
+                                            Backlog ({tasks.length - 3} more tasks)
+                                        </span>
+                                    </div>
+                                    {showBacklog ? <ChevronUp size={20} className="text-slate-400" /> : <ChevronDown size={20} className="text-slate-400" />}
+                                </button>
+
+                                {showBacklog && (
+                                    <div className="mt-4 space-y-3 animate-slideDown">
+                                        {tasks.slice(3).map((task, sliceIndex) => {
+                                            const originalIndex = sliceIndex + 3;
+                                            return (
+                                                <TaskRow
+                                                    key={task.id}
+                                                    task={task}
+                                                    index={originalIndex}
+                                                    isActive={activeTask?.id === task.id}
+                                                    isExpanded={expandedTaskId === task.id}
+                                                    onPlay={() => handlePlayTask(task)}
+                                                    onToggle={() => handleToggleTaskComplete(task.id)}
+                                                    onDelete={() => handleDeleteTask(task.id)}
+                                                    onExpand={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
+                                                    onDragStart={handleDragStart}
+                                                    onDragEnter={handleDragEnter}
+                                                    onDragEnd={handleDragEnd}
+                                                    isDragging={draggedIndex === originalIndex}
+                                                    getTagColor={getTagColor}
+                                                    isTopFocus={false}
+                                                />
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -1059,6 +1285,17 @@ export default function ProductiveView() {
                     </div>
                 </div>
             </div>
+
+            {/* Breakdown Preview Modal */}
+            <BreakdownPreviewModal
+                isOpen={showBreakdownPreview}
+                tasks={previewTasks}
+                isLoading={isLoading}
+                originalInput={breakdownInput || inputValue}
+                onAccept={handleAcceptBreakdown}
+                onReprompt={handleRepromptBreakdown}
+                onCancel={handleCancelBreakdown}
+            />
         </div>
     );
 }
@@ -1185,24 +1422,60 @@ function TaskRow({
                 </button>
             </div>
 
-            {/* Expanded State - Shows Details BELOW the entire row */}
+            {/* Expanded State - Shows Details */}
             {isExpanded && (
-                <div className="px-4 pb-4 ml-[88px] animate-slideDown">
-                    <div className="pt-3 border-t border-slate-100">
-                        <p className="text-sm text-slate-600 leading-relaxed mb-2">
+                <div className="overflow-hidden">
+                    {/* Divider Line - aligned with content */}
+                    <div className="pl-16 pr-4">
+                        <div className="border-t border-slate-200" />
+                    </div>
+                    
+                    {/* Task Details Content - animates from top (origin at divider) */}
+                    <div 
+                        className="px-4 py-4 pl-16 bg-gradient-to-b from-slate-50/50 to-white"
+                        style={{
+                            animation: 'expandFromTop 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+                            transformOrigin: 'top center',
+                        }}
+                    >
+                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                            Task Details
+                        </h4>
+                        <p className="text-sm text-slate-600 leading-relaxed mb-3">
                             {task.summary || "No additional details available."}
                         </p>
+
                         {task.source && (
                             <div className="flex items-center gap-2 text-xs text-slate-400">
                                 <span className="font-bold">Source:</span>
-                                <span className="bg-slate-50 px-2 py-1 rounded-full border border-slate-200">
+                                <span className="bg-white px-2 py-1 rounded-full border border-slate-200">
                                     {task.source}
                                 </span>
                             </div>
                         )}
                     </div>
+                    
+                    <style jsx>{`
+                        @keyframes expandFromTop {
+                            0% {
+                                opacity: 0;
+                                max-height: 0;
+                                transform: scaleY(0) translateY(-8px);
+                            }
+                            60% {
+                                opacity: 0.8;
+                                transform: scaleY(1.02) translateY(0);
+                            }
+                            100% {
+                                opacity: 1;
+                                max-height: 500px;
+                                transform: scaleY(1) translateY(0);
+                            }
+                        }
+                    `}</style>
                 </div>
             )}
+
         </div>
     );
 }

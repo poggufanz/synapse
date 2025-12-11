@@ -13,7 +13,7 @@ interface SafetyPlanModalProps {
 interface EmergencyContact {
     name: string;
     phone: string;
-}
+} 
 
 const STORAGE_KEY = "synapse-safety-plan";
 

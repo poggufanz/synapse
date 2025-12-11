@@ -1,8 +1,5 @@
-import callGemini, { Persona, ChatMessage } from "@/utils/callGemini";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import callGemini, { Persona, ChatMessage, Attachment, ThinkingMode } from "@/utils/callGemini";
 import { NextResponse } from "next/server";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function POST(req: Request) {
   try {
@@ -12,9 +9,11 @@ export async function POST(req: Request) {
       persona?: Persona;
       systemPrompt?: string;
       modelName?: string;
+      attachments?: Attachment[];
+      thinkingMode?: ThinkingMode;
     } = await req.json();
 
-    const { history = [], message, persona, systemPrompt, modelName } = body;
+    const { history = [], message, persona, systemPrompt, modelName, attachments = [], thinkingMode } = body;
 
     const defaultSystemPrompt = `
       You are a sharp, energetic, and strategic "Sparring Partner" for high-performance work.
@@ -28,6 +27,11 @@ export async function POST(req: Request) {
       If they are a "Deep Thinker": Ask probing questions, help structure their deep dive.
       If they are a "Sensitive Soul": Be encouraging, validate their effort, then gently push.
       
+      When the user shares images or documents:
+      - Analyze the content carefully
+      - Reference specific details from what you see
+      - Help them extract actionable insights
+      
       Keep responses concise. No fluff.
     `;
 
@@ -38,7 +42,9 @@ export async function POST(req: Request) {
       message,
       persona,
       systemPrompt: promptToUse,
-      modelName: modelName || "gemini-2.5-flash",
+      modelName, // Uses default gemini-2.5-pro if not specified
+      attachments,
+      thinkingMode,
     });
 
     return NextResponse.json({ message: responseText });
@@ -47,3 +53,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: "Let's try that again." }, { status: 500 });
   }
 }
+

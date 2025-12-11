@@ -1,284 +1,236 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, Check, Sparkles, Clock, Zap, Brain, Battery, RefreshCw, MessageSquare } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { X, Sparkles, Clock, Check, RefreshCw, Zap, Coffee, Brain } from "lucide-react";
 
 export interface PreviewTask {
-    id: string;
     action: string;
-    summary?: string;
-    energy: "Deep Work" | "Shallow Work" | "Recovery";
+    summary: string;
     duration: number;
-    isSelected: boolean;
-    source?: string;
+    energy: "Recovery" | "Shallow Work" | "Deep Work";
+    source: string;
 }
 
 interface BreakdownPreviewModalProps {
     isOpen: boolean;
     tasks: PreviewTask[];
-    isLoading?: boolean;
-    originalInput?: string;
-    onAccept: (selectedTasks: PreviewTask[]) => void;
+    isLoading: boolean;
+    originalInput: string;
+    onAccept: (tasks: PreviewTask[]) => void;
     onReprompt: (feedback: string) => void;
     onCancel: () => void;
 }
 
-const getEnergyIcon = (energy: string) => {
-    switch (energy) {
-        case "Deep Work":
-            return <Brain size={14} className="text-purple-500" />;
-        case "Shallow Work":
-            return <Zap size={14} className="text-blue-500" />;
-        case "Recovery":
-            return <Battery size={14} className="text-green-500" />;
-        default:
-            return <Zap size={14} className="text-slate-500" />;
-    }
+const energyIcons: Record<string, React.ReactNode> = {
+    "Recovery": <Coffee size={14} className="text-green-500" />,
+    "Shallow Work": <Zap size={14} className="text-amber-500" />,
+    "Deep Work": <Brain size={14} className="text-purple-500" />,
 };
 
-const getEnergyColor = (energy: string) => {
-    switch (energy) {
-        case "Deep Work":
-            return "bg-purple-100 text-purple-600 border-purple-200";
-        case "Shallow Work":
-            return "bg-blue-100 text-blue-600 border-blue-200";
-        case "Recovery":
-            return "bg-green-100 text-green-600 border-green-200";
-        default:
-            return "bg-slate-100 text-slate-600 border-slate-200";
-    }
+const energyColors: Record<string, string> = {
+    "Recovery": "bg-green-50 border-green-200 text-green-700",
+    "Shallow Work": "bg-amber-50 border-amber-200 text-amber-700",
+    "Deep Work": "bg-purple-50 border-purple-200 text-purple-700",
 };
 
 export default function BreakdownPreviewModal({
     isOpen,
-    tasks: initialTasks,
-    isLoading = false,
-    originalInput = "",
+    tasks,
+    isLoading,
+    originalInput,
     onAccept,
     onReprompt,
     onCancel,
 }: BreakdownPreviewModalProps) {
-    const [tasks, setTasks] = useState<PreviewTask[]>([]);
-    const [showReprompt, setShowReprompt] = useState(false);
-    const [repromptFeedback, setRepromptFeedback] = useState("");
-
-    // Reset tasks when initial tasks change
-    useEffect(() => {
-        if (initialTasks.length > 0) {
-            setTasks(initialTasks.map(t => ({ ...t, isSelected: true })));
-        }
-    }, [initialTasks]);
-
-    const toggleTask = (id: string) => {
-        setTasks(prev =>
-            prev.map(task =>
-                task.id === id ? { ...task, isSelected: !task.isSelected } : task
-            )
-        );
-    };
-
-    const selectAll = () => {
-        setTasks(prev => prev.map(task => ({ ...task, isSelected: true })));
-    };
-
-    const deselectAll = () => {
-        setTasks(prev => prev.map(task => ({ ...task, isSelected: false })));
-    };
-
-    const handleAccept = () => {
-        const selectedTasks = tasks.filter(task => task.isSelected);
-        onAccept(selectedTasks);
-    };
+    const [repromptText, setRepromptText] = useState("");
+    const [showRepromptInput, setShowRepromptInput] = useState(false);
 
     const handleReprompt = () => {
-        if (repromptFeedback.trim()) {
-            onReprompt(repromptFeedback);
-            setRepromptFeedback("");
-            setShowReprompt(false);
+        if (repromptText.trim()) {
+            onReprompt(repromptText.trim());
+            setRepromptText("");
+            setShowRepromptInput(false);
         }
     };
 
-    const selectedCount = tasks.filter(t => t.isSelected).length;
-
-    if (!isOpen) return null;
+    const totalTime = tasks.reduce((acc, t) => acc + (t.duration || 5), 0);
 
     return (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
-            <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-100 animate-slideUp max-h-[90vh] overflow-hidden flex flex-col">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
-                            <Sparkles size={20} className="text-white" />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-bold text-slate-800">AI Breakdown Preview</h3>
-                            <p className="text-sm text-slate-500">Select tasks to add to your list</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={onCancel}
-                        className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
+        <AnimatePresence>
+            {isOpen && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    onClick={onCancel}
+                >
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col"
                     >
-                        <X size={20} className="text-slate-400" />
-                    </button>
-                </div>
-
-                {/* Original Input Preview */}
-                {originalInput && (
-                    <div className="bg-slate-50 rounded-xl p-3 mb-4 flex-shrink-0">
-                        <p className="text-xs text-slate-500 mb-1">Breaking down:</p>
-                        <p className="text-sm text-slate-700 font-medium truncate">{originalInput}</p>
-                    </div>
-                )}
-
-                {/* Loading State */}
-                {isLoading ? (
-                    <div className="py-12 text-center flex-1 flex flex-col items-center justify-center">
-                        <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-500 rounded-full animate-spin mx-auto mb-4" />
-                        <p className="text-slate-500 font-medium">Breaking down your task...</p>
-                        <p className="text-xs text-slate-400 mt-2">This may take a moment</p>
-                    </div>
-                ) : showReprompt ? (
-                    /* Reprompt Input */
-                    <div className="flex-1 flex flex-col">
-                        <div className="mb-4">
-                            <label className="text-sm font-medium text-slate-700 mb-2 block">
-                                How should I adjust the breakdown?
-                            </label>
-                            <textarea
-                                value={repromptFeedback}
-                                onChange={(e) => setRepromptFeedback(e.target.value)}
-                                placeholder="e.g., 'Make the steps smaller' or 'Focus more on design tasks'"
-                                className="w-full h-24 p-3 border-2 border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:border-purple-400"
-                            />
-                        </div>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowReprompt(false)}
-                                className="flex-1 py-3 px-4 rounded-2xl border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all"
-                            >
-                                Back
-                            </button>
-                            <button
-                                onClick={handleReprompt}
-                                disabled={!repromptFeedback.trim()}
-                                className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <RefreshCw size={16} className="inline mr-2" />
-                                Re-break
-                            </button>
-                        </div>
-                    </div>
-                ) : (
-                    <>
-                        {/* Selection Controls */}
-                        <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                            <span className="text-sm text-slate-500">
-                                {selectedCount} of {tasks.length} selected
-                            </span>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={selectAll}
-                                    className="text-xs font-medium text-blue-600 hover:text-blue-700 px-2 py-1 hover:bg-blue-50 rounded-lg transition-colors"
-                                >
-                                    Select All
-                                </button>
-                                <button
-                                    onClick={deselectAll}
-                                    className="text-xs font-medium text-slate-500 hover:text-slate-700 px-2 py-1 hover:bg-slate-50 rounded-lg transition-colors"
-                                >
-                                    Clear
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Task List */}
-                        <div className="space-y-2 overflow-y-auto flex-1 pr-1 min-h-0">
-                            {tasks.map((task) => (
-                                <div
-                                    key={task.id}
-                                    onClick={() => toggleTask(task.id)}
-                                    className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                                        task.isSelected
-                                            ? "border-blue-400 bg-blue-50/50"
-                                            : "border-slate-100 hover:border-slate-200 bg-white"
-                                    }`}
-                                >
-                                    <div className="flex items-start gap-3">
-                                        {/* Checkbox */}
-                                        <div
-                                            className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${
-                                                task.isSelected
-                                                    ? "bg-blue-500 border-blue-500"
-                                                    : "border-slate-300"
-                                            }`}
-                                        >
-                                            {task.isSelected && (
-                                                <Check size={12} className="text-white" />
-                                            )}
-                                        </div>
-
-                                        {/* Task Info */}
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-medium text-slate-800 text-sm">
-                                                {task.action}
-                                            </p>
-                                            {task.summary && (
-                                                <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                                                    {task.summary}
-                                                </p>
-                                            )}
-                                            <div className="flex items-center gap-3 mt-2">
-                                                <span
-                                                    className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${getEnergyColor(
-                                                        task.energy
-                                                    )}`}
-                                                >
-                                                    {getEnergyIcon(task.energy)}
-                                                    {task.energy}
-                                                </span>
-                                                <span className="flex items-center gap-1 text-xs text-slate-500">
-                                                    <Clock size={12} />
-                                                    {task.duration}m
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
+                        {/* Header */}
+                        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-br from-purple-50 to-white">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-purple-500 rounded-xl flex items-center justify-center">
+                                    <Sparkles size={20} className="text-white" />
                                 </div>
-                            ))}
-                        </div>
-
-                        {/* Footer */}
-                        <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-slate-100 flex-shrink-0">
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={onCancel}
-                                    className="flex-1 py-3 px-4 rounded-2xl border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleAccept}
-                                    disabled={selectedCount === 0}
-                                    className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold hover:from-blue-600 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-200"
-                                >
-                                    Add {selectedCount} Tasks
-                                </button>
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-800">AI Breakdown</h2>
+                                    <p className="text-xs text-slate-500 truncate max-w-[200px]">{originalInput}</p>
+                                </div>
                             </div>
-                            
-                            {/* Reprompt Button */}
                             <button
-                                onClick={() => setShowReprompt(true)}
-                                className="w-full py-2.5 px-4 rounded-xl text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+                                onClick={onCancel}
+                                className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
                             >
-                                <MessageSquare size={14} />
-                                Not quite right? Adjust the breakdown
+                                <X size={20} className="text-slate-500" />
                             </button>
                         </div>
-                    </>
-                )}
-            </div>
-        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto p-5">
+                            {isLoading ? (
+                                <div className="text-center py-12">
+                                    <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-4">
+                                        <RefreshCw size={28} className="text-purple-500 animate-spin" />
+                                    </div>
+                                    <p className="text-slate-600 font-medium">Breaking down into micro-tasks...</p>
+                                    <p className="text-sm text-slate-400 mt-1">This takes a few seconds</p>
+                                </div>
+                            ) : tasks.length > 0 ? (
+                                <>
+                                    {/* Summary Badge */}
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm font-bold">
+                                            <Sparkles size={14} />
+                                            {tasks.length} micro-tasks
+                                        </span>
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 rounded-full text-sm font-medium">
+                                            <Clock size={14} />
+                                            ~{totalTime} min total
+                                        </span>
+                                    </div>
+
+                                    {/* Task List */}
+                                    <div className="space-y-3">
+                                        {tasks.map((task, index) => (
+                                            <motion.div
+                                                key={index}
+                                                initial={{ opacity: 0, x: -10 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: index * 0.05 }}
+                                                className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md transition-shadow"
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    {/* Number Badge */}
+                                                    <div className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-sm font-bold text-slate-600 shrink-0">
+                                                        {index + 1}
+                                                    </div>
+
+                                                    <div className="flex-1 min-w-0">
+                                                        {/* Action + Duration */}
+                                                        <div className="flex items-center justify-between gap-2 mb-1">
+                                                            <h4 className="font-bold text-slate-800 truncate">{task.action}</h4>
+                                                            <span className="text-xs text-slate-400 shrink-0">~{task.duration || 5}m</span>
+                                                        </div>
+
+                                                        {/* Summary */}
+                                                        <p className="text-sm text-slate-500 mb-2">{task.summary}</p>
+
+                                                        {/* Energy Tag */}
+                                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${energyColors[task.energy] || energyColors["Shallow Work"]}`}>
+                                                            {energyIcons[task.energy]}
+                                                            {task.energy}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                    </div>
+
+                                    {/* Reprompt Input */}
+                                    {showRepromptInput && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: "auto" }}
+                                            className="mt-4"
+                                        >
+                                            <textarea
+                                                value={repromptText}
+                                                onChange={(e) => setRepromptText(e.target.value)}
+                                                placeholder="E.g., 'Make them even smaller' or 'Focus more on reading'"
+                                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:border-purple-400 transition-colors"
+                                                rows={2}
+                                                autoFocus
+                                            />
+                                        </motion.div>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="text-center py-12">
+                                    <p className="text-slate-500">No tasks generated yet</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer Actions */}
+                        {!isLoading && tasks.length > 0 && (
+                            <div className="p-4 border-t border-slate-100 bg-slate-50">
+                                <div className="flex gap-3">
+                                    {/* Cancel */}
+                                    <button
+                                        onClick={onCancel}
+                                        className="flex-1 py-3 px-4 bg-white border border-slate-200 text-slate-600 rounded-xl font-medium hover:bg-slate-100 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+
+                                    {/* Reprompt */}
+                                    {showRepromptInput ? (
+                                        <button
+                                            onClick={handleReprompt}
+                                            disabled={!repromptText.trim()}
+                                            className="flex-1 py-3 px-4 bg-amber-500 text-white rounded-xl font-medium hover:bg-amber-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            <RefreshCw size={16} />
+                                            Regenerate
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => setShowRepromptInput(true)}
+                                            className="py-3 px-4 bg-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-300 transition-colors flex items-center gap-2"
+                                        >
+                                            <RefreshCw size={16} />
+                                            Adjust
+                                        </button>
+                                    )}
+
+                                    {/* Accept */}
+                                    {!showRepromptInput && (
+                                        <button
+                                            onClick={() => onAccept(tasks)}
+                                            className="flex-1 py-3 px-4 bg-purple-500 text-white rounded-xl font-bold hover:bg-purple-400 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-purple-200"
+                                        >
+                                            <Check size={18} />
+                                            Add Tasks
+                                        </button>
+                                    )}
+                                </div>
+
+                                <p className="text-xs text-slate-400 text-center mt-3">
+                                    💡 Each task is designed to take just 5 minutes
+                                </p>
+                            </div>
+                        )}
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
     );
 }

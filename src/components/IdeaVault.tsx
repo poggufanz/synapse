@@ -90,7 +90,7 @@ export default function IdeaVault() {
                         />
 
                         {/* Container lampu + modal - centered */}
-                        <div className="relative flex flex-col items-center z-10">
+                        <div className="relative flex flex-col items-center z-10 mt-8">
                             {/* Tali + Lampu dengan efek swing */}
                             <motion.div
                                 initial={{ y: -150 }}
@@ -109,145 +109,144 @@ export default function IdeaVault() {
                                 }}
                                 className="flex flex-col items-center origin-top"
                             >
-                                {/* Kabel lampu - panjang sampai atas */}
+                                {/* Tali */}
                                 <motion.div
                                     initial={{ scaleY: 0 }}
                                     animate={{ scaleY: 1 }}
                                     transition={{ duration: 0.3 }}
-                                    className="w-[2px] h-24 bg-slate-600 rounded-full origin-top"
+                                    className="w-[3px] h-16 bg-gradient-to-b from-slate-400 to-slate-500 rounded-full origin-top"
                                 />
 
-                                {/* Conical Pendant Lamp */}
+                                {/* Fitting / Socket lampu */}
+                                <div className="w-6 h-4 bg-slate-500 rounded-b-lg -mt-0.5" />
+                                <div className="w-5 h-1 bg-slate-600 rounded-sm -mt-0.5" />
+
+                                {/* Lampu pijar - KEBALIK (bola menghadap bawah) */}
                                 <motion.div
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     transition={{ delay: 0.3 }}
-                                    className="relative flex flex-col items-center"
+                                    className="relative"
                                 >
-                                    {/* Cable attachment / top hook - hitam */}
-                                    <div className="w-3 h-2 bg-gradient-to-b from-slate-700 to-slate-800 rounded-full" />
-                                    
-                                    {/* Conical Shade Container */}
-                                    <div className="relative">
-                                        {/* Light bulb - DIRENDER DULU agar di belakang kap */}
+                                    {/* Glow effect */}
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.5 }}
+                                        animate={{
+                                            opacity: [0, 0.9, 0.7],
+                                            scale: [0.5, 1.3, 1.1]
+                                        }}
+                                        transition={{ delay: 0.6, duration: 0.5 }}
+                                        className="absolute -inset-6 bg-yellow-300 rounded-full blur-2xl -z-10"
+                                    />
+
+                                    {/* Bola Lampu - menghadap ke bawah */}
+                                    <motion.div
+                                        animate={{
+                                            filter: ["brightness(0.6)", "brightness(1.2)", "brightness(1)"]
+                                        }}
+                                        transition={{ delay: 0.5, duration: 0.4 }}
+                                        className="w-16 h-20 relative"
+                                    >
+                                        {/* Glass bulb */}
+                                        <div className="absolute inset-0 bg-gradient-to-b from-yellow-100 via-yellow-200 to-yellow-400 rounded-full border-4 border-yellow-400 shadow-lg"
+                                            style={{ borderRadius: "50% 50% 50% 50% / 40% 40% 60% 60%" }}
+                                        />
+                                        {/* Filament glow */}
                                         <motion.div
                                             initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: 0.5 }}
-                                            className="absolute top-[38px] left-1/2 -translate-x-1/2 z-0"
+                                            animate={{ opacity: [0, 1, 0.8] }}
+                                            transition={{ delay: 0.6, duration: 0.3 }}
+                                            className="absolute inset-4 flex items-center justify-center"
                                         >
-                                            {/* Bulb glow effect - kuning/amber */}
-                                            <motion.div
-                                                initial={{ opacity: 0, scale: 0.5 }}
-                                                animate={{
-                                                    opacity: [0.5, 0.9, 0.7],
-                                                    scale: [0.9, 1.2, 1]
-                                                }}
-                                                transition={{ delay: 0.6, duration: 0.5 }}
-                                                className="absolute -inset-3 bg-amber-300 rounded-full blur-lg"
-                                            />
-                                            
-                                            {/* Actual bulb - kuning/cream */}
-                                            <motion.div
-                                                animate={{
-                                                    filter: ["brightness(0.95)", "brightness(1.1)", "brightness(1)"]
-                                                }}
-                                                transition={{ delay: 0.5, duration: 0.4 }}
-                                                className="w-7 h-7 bg-gradient-to-b from-amber-100 via-amber-50 to-white rounded-full border border-amber-200 shadow-[0_0_15px_rgba(251,191,36,0.6)]"
-                                            />
-                                            
-                                            {/* Inner highlight on bulb */}
-                                            <div className="absolute top-1 left-1 w-2 h-2 bg-white/80 rounded-full blur-[1px]" />
+                                            <div className="w-4 h-6 bg-yellow-500 rounded-full blur-sm" />
                                         </motion.div>
+                                        {/* Inner highlight */}
+                                        <div className="absolute top-3 left-3 w-4 h-4 bg-white/40 rounded-full blur-sm" />
+                                    </motion.div>
 
-                                        {/* Conical Shade - SVG - HITAM - dirender SETELAH bulb agar menutupi bagian atas */}
-                                        <motion.svg 
-                                            width="100" 
-                                            height="50" 
-                                            viewBox="0 0 100 50"
-                                            className="-mt-1 relative z-10"
-                                        >
-                                            <defs>
-                                                {/* Gradient untuk conical shade - HITAM */}
-                                                <linearGradient id="coneGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                                    <stop offset="0%" stopColor="#1e293b" />
-                                                    <stop offset="30%" stopColor="#334155" />
-                                                    <stop offset="50%" stopColor="#475569" />
-                                                    <stop offset="70%" stopColor="#334155" />
-                                                    <stop offset="100%" stopColor="#1e293b" />
-                                                </linearGradient>
-                                                {/* Highlight */}
-                                                <linearGradient id="coneHighlight" x1="0%" y1="0%" x2="0%" y2="100%">
-                                                    <stop offset="0%" stopColor="#94a3b8" stopOpacity="0.3" />
-                                                    <stop offset="100%" stopColor="#334155" stopOpacity="0" />
-                                                </linearGradient>
-                                            </defs>
-                                            
-                                            {/* Main cone shape - triangle pointing down - HITAM */}
-                                            <polygon 
-                                                points="50,0 5,48 95,48" 
-                                                fill="url(#coneGradient)"
+                                    {/* Sinar memancar - default */}
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: 0.7 }}
+                                        className="absolute inset-0 flex items-center justify-center"
+                                    >
+                                        {[...Array(8)].map((_, i) => (
+                                            <motion.div
+                                                key={i}
+                                                initial={{ scaleY: 0, opacity: 0 }}
+                                                animate={{
+                                                    scaleY: showSparkles ? [1, 1.8, 1] : 1,
+                                                    opacity: showSparkles ? [0.6, 1, 0.6] : 0.6
+                                                }}
+                                                transition={{
+                                                    delay: showSparkles ? 0 : 0.7,
+                                                    duration: showSparkles ? 0.5 : 0.3
+                                                }}
+                                                className="absolute w-1 h-6 bg-gradient-to-b from-yellow-400 to-transparent rounded-full"
+                                                style={{
+                                                    transform: `rotate(${i * 45}deg) translateY(35px)`,
+                                                    transformOrigin: "center top"
+                                                }}
                                             />
-                                            
-                                            {/* Highlight on left side */}
-                                            <polygon 
-                                                points="50,0 20,35 50,35" 
-                                                fill="url(#coneHighlight)"
-                                            />
-                                            
-                                            {/* Bottom edge - rim of the cone - lebih gelap */}
-                                            <line x1="5" y1="48" x2="95" y2="48" stroke="#0f172a" strokeWidth="3" />
-                                        </motion.svg>
+                                        ))}
+                                    </motion.div>
 
-                                        {/* Sparkle effects when saving */}
-                                        <AnimatePresence>
-                                            {showSparkles && (
-                                                <>
-                                                    {/* Star sparkles around the bulb */}
-                                                    {[
-                                                        { x: -25, y: 10, delay: 0 },
-                                                        { x: 25, y: 10, delay: 0.1 },
-                                                        { x: -35, y: 40, delay: 0.15 },
-                                                        { x: 35, y: 40, delay: 0.05 },
-                                                        { x: 0, y: 60, delay: 0.2 },
-                                                    ].map((sparkle, i) => (
-                                                        <motion.div
-                                                            key={`sparkle-${i}`}
-                                                            initial={{ opacity: 0, scale: 0 }}
-                                                            animate={{
-                                                                opacity: [0, 1, 0],
-                                                                scale: [0, 1.2, 0],
-                                                            }}
-                                                            transition={{
-                                                                duration: 0.8,
-                                                                delay: sparkle.delay,
-                                                                ease: "easeOut"
-                                                            }}
-                                                            className="absolute text-yellow-400 text-lg"
-                                                            style={{
-                                                                left: `calc(50% + ${sparkle.x}px)`,
-                                                                top: `${sparkle.y}px`,
-                                                                transform: 'translate(-50%, -50%)'
-                                                            }}
-                                                        >
-                                                            ✦
-                                                        </motion.div>
-                                                    ))}
-
-                                                    {/* Glow pulse */}
+                                    {/* Extra kling rays saat save - garis pendek memancar keluar */}
+                                    <AnimatePresence>
+                                        {showSparkles && (
+                                            <>
+                                                {/* Burst rays - garis pendek di luar lampu */}
+                                                {[
+                                                    { angle: -60, dist: 48 },
+                                                    { angle: -30, dist: 50 },
+                                                    { angle: 0, dist: 52 },
+                                                    { angle: 30, dist: 50 },
+                                                    { angle: 60, dist: 48 },
+                                                    { angle: 120, dist: 48 },
+                                                    { angle: 150, dist: 50 },
+                                                    { angle: 180, dist: 52 },
+                                                    { angle: -150, dist: 50 },
+                                                    { angle: -120, dist: 48 },
+                                                ].map((ray, i) => (
                                                     <motion.div
-                                                        initial={{ opacity: 0, scale: 0.5 }}
+                                                        key={`ray-${i}`}
+                                                        initial={{ opacity: 0, width: 0 }}
                                                         animate={{
-                                                            opacity: [0, 0.8, 0],
-                                                            scale: [0.5, 2, 2.5]
+                                                            opacity: [0, 1, 1, 0],
+                                                            width: [0, 18, 18, 0],
                                                         }}
-                                                        transition={{ duration: 1.0 }}
-                                                        className="absolute left-1/2 top-4 -translate-x-1/2 w-16 h-16 bg-amber-300 rounded-full blur-2xl -z-10"
+                                                        transition={{
+                                                            duration: 1.2,
+                                                            delay: i * 0.08,
+                                                            ease: "easeOut"
+                                                        }}
+                                                        style={{
+                                                            position: 'absolute',
+                                                            left: '50%',
+                                                            top: '50%',
+                                                            height: '4px',
+                                                            background: 'linear-gradient(to right, #FBBF24, #FDE047)',
+                                                            borderRadius: '4px',
+                                                            transformOrigin: 'left center',
+                                                            transform: `rotate(${ray.angle}deg) translateX(${ray.dist}px)`,
+                                                        }}
                                                     />
-                                                </>
-                                            )}
-                                        </AnimatePresence>
-                                    </div>
+                                                ))}
+
+                                                {/* Glow pulse */}
+                                                <motion.div
+                                                    initial={{ opacity: 0, scale: 0.5 }}
+                                                    animate={{
+                                                        opacity: [0, 0.8, 0],
+                                                        scale: [0.5, 2, 2.5]
+                                                    }}
+                                                    transition={{ duration: 1.0 }}
+                                                    className="absolute -inset-8 bg-yellow-300 rounded-full blur-2xl -z-10"
+                                                />
+                                            </>
+                                        )}
+                                    </AnimatePresence>
                                 </motion.div>
                             </motion.div>
 
@@ -259,7 +258,7 @@ export default function IdeaVault() {
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: 10, scale: 0.98 }}
                                         transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                                        className="mt-8 w-80 relative"
+                                        className="mt-4 w-80 relative"
                                     >
                                         <div className="bg-white rounded-3xl p-5 shadow-2xl border border-slate-100">
                                             <div className="flex justify-between items-center mb-4">

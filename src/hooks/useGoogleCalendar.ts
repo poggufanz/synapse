@@ -23,6 +23,7 @@ export function useGoogleCalendar(): UseGoogleCalendarReturn {
     const [isConnected, setIsConnected] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
+    const [isConfigured, setIsConfigured] = useState(true);
 
     // Initialize on mount
     useEffect(() => {
@@ -50,15 +51,25 @@ export function useGoogleCalendar(): UseGoogleCalendarReturn {
             },
             (error) => {
                 setIsLoading(false);
-                toast.error(`Calendar connection failed: ${error}`);
+                // Check if it's a configuration error (not user error)
+                if (error.includes("not configured")) {
+                    setIsConfigured(false);
+                    console.warn("Google Calendar not configured - feature disabled");
+                } else {
+                    toast.error(`Calendar connection failed: ${error}`);
+                }
             }
         );
     }, [isInitialized]);
 
     const connect = useCallback(() => {
+        if (!isConfigured) {
+            toast.error("Google Calendar not configured. Please set up NEXT_PUBLIC_GOOGLE_CLIENT_ID.");
+            return;
+        }
         setIsLoading(true);
         requestAccessToken();
-    }, []);
+    }, [isConfigured]);
 
     const disconnect = useCallback(() => {
         googleDisconnect();
@@ -68,6 +79,12 @@ export function useGoogleCalendar(): UseGoogleCalendarReturn {
 
     const syncTask = useCallback(
         async (title: string, date: Date, time: string, duration: number): Promise<boolean> => {
+            // Check if configured
+            if (!isConfigured) {
+                toast.error("Google Calendar not configured");
+                return false;
+            }
+            
             // If not connected, prompt to connect first
             if (!isConnected) {
                 return new Promise((resolve) => {

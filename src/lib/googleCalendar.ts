@@ -85,6 +85,13 @@ export async function loadGoogleScript(): Promise<void> {
  * Initialize Google OAuth token client
  */
 export function initTokenClient(onSuccess: (token: string) => void, onError?: (error: string) => void): void {
+    // Check if Google Client ID is configured
+    if (!GOOGLE_CLIENT_ID) {
+        console.warn("Google Calendar: NEXT_PUBLIC_GOOGLE_CLIENT_ID not configured");
+        onError?.("Google Calendar not configured. Please set NEXT_PUBLIC_GOOGLE_CLIENT_ID in your .env.local file.");
+        return;
+    }
+
     if (!window.google?.accounts?.oauth2) {
         onError?.("Google Identity Services not loaded");
         return;

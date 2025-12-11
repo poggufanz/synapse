@@ -1,62 +1,82 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+import callGemini, { Attachment } from "@/utils/callGemini";
 
 export async function POST(req: Request) {
   try {
-    const { task } = await req.json();
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const { task, attachments = [], reprompt }: { task: string; attachments?: Attachment[]; reprompt?: string } = await req.json();
 
-    const prompt = `
-      You are an expert project manager and gamification master. Your job is to deconstruct a user's broad learning topic (Brain Dump) into 3-6 actionable, sequential “Micro-missions” that promote focused, incremental learning.
+    const systemPrompt = `
+      You are an expert at breaking down overwhelming tasks into ULTRA-MICRO tasks that take only 3-5 minutes each.
+      Your goal is to make the user feel "I can do this RIGHT NOW" by creating tiny, non-intimidating steps.
 
-      Input: "${task}"
+      CRITICAL RULES:
+      1. Each task MUST be completable in 3-5 minutes MAX
+      2. Use action verbs that feel quick: "Skim", "Jot", "Find", "Open", "Read 1 page", "Watch 2 min"
+      3. First task should be a "just start" task - something trivial to build momentum
+      4. Avoid vague tasks - be SPECIFIC about what to do
+      5. Maximum 5-6 tasks total
 
-      The Micro-missions MUST be concrete, starting from the most fundamental/easy step, and progress logically towards the main topic. They must specify a clear action related to learning content (e.g., 'Define Key Terms', 'Watch Intro Video', 'Solve 5 Practice Problems').
+      If the user provides an image or document (like a syllabus, screenshot, or notes):
+      - Carefully analyze the content
+      - Extract topics and create ultra-micro learning steps
+      - Be specific about page numbers, sections, or items from the document
 
-      For each mission, provide:
-      1. "action": A short, punchy verb phrase describing the learning step (e.g., "Define Limit Terms"). Max 4 words.
-      2. "summary": A 1-sentence explanation of the specific learning goal and content (e.g., "Quickly search and note the formal and informal definitions of a mathematical limit.").
-      3. "energy": "Deep Work" (complex problem-solving, synthesis), "Shallow Work" (reading definitions, watching introductory videos), or "Recovery" (reviewing notes, organizing files).
-      4. "source": Where this came from (always "User Learning Goal").
+      For each task, provide:
+      1. "action": A punchy verb phrase (2-4 words). E.g., "Skim Chapter 1", "Write 3 Keywords"
+      2. "summary": One sentence explaining the micro-goal
+      3. "duration": Always 5 (representing 5 minutes)
+      4. "energy": "Recovery" (very easy), "Shallow Work" (easy), or "Deep Work" (focused but short)
+      5. "source": "Document Analysis" if from attachment, otherwise "User Goal"
 
-      Return ONLY a JSON array of objects. The first mission should always be Shallow Work and focus on a very quick, fundamental introduction (e.g., '5-minute intro').
+      ${reprompt ? `USER FEEDBACK: The user wants you to adjust: "${reprompt}". Please regenerate tasks accordingly.` : ''}
 
-      Example for Input: "aku mau belajar kalkulus materi limit"
+      Return ONLY a JSON array. No markdown, no explanation.
+
+      Example for "I need to study for my calculus exam":
       [
         {
-          "action": "Define Limit Terms",
-          "summary": "Quickly search and note the formal and informal definitions of a mathematical limit.",
+          "action": "Open Notes",
+          "summary": "Just open your calculus notes or textbook to the relevant chapter",
+          "duration": 5,
+          "energy": "Recovery",
+          "source": "User Goal"
+        },
+        {
+          "action": "Skim Formulas",
+          "summary": "Quickly scan the main formulas for 3 minutes - don't memorize yet",
+          "duration": 5,
           "energy": "Shallow Work",
-          "source": "User Learning Goal"
+          "source": "User Goal"
         },
         {
-          "action": "Watch Limit Intro",
-          "summary": "Find a short (under 10 min) introductory video explaining the concept of limits graphically.",
+          "action": "Solve 1 Problem",
+          "summary": "Pick the easiest practice problem and solve it",
+          "duration": 5,
+          "energy": "Deep Work",
+          "source": "User Goal"
+        },
+        {
+          "action": "Write 3 Questions",
+          "summary": "Jot down 3 things you're confused about",
+          "duration": 5,
           "energy": "Shallow Work",
-          "source": "User Learning Goal"
-        },
-        {
-          "action": "Review Limit Properties",
-          "summary": "Read the textbook or course notes chapter detailing the fundamental properties of limits (sum, product, quotient).",
-          "energy": "Deep Work",
-          "source": "User Learning Goal"
-        },
-        {
-          "action": "Solve Basic Problems",
-          "summary": "Work through the first 5 practice problems applying the basic limit properties.",
-          "energy": "Deep Work",
-          "source": "User Learning Goal"
+          "source": "User Goal"
         }
       ]
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = result.response.text();
+    const messageText = attachments.length > 0
+      ? `Analyze the attached file(s) and break down into 5-min micro-tasks. User request: "${task}"`
+      : `Break down this into 5-min micro-tasks: "${task}"`;
+
+    const responseText = await callGemini({
+      message: messageText,
+      systemPrompt,
+      attachments,
+    });
 
     // Clean up markdown code blocks if present
-    const cleanResponse = response
+    const cleanResponse = responseText
       .replace(/```json/g, "")
       .replace(/```/g, "")
       .trim();
@@ -68,3 +88,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to break down task" }, { status: 500 });
   }
 }
+
+

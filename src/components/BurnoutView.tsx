@@ -366,6 +366,22 @@ export default function BurnoutView() {
 
     return (
         <div className={`h-screen bg-gradient-to-br ${theme.bg} ${theme.text} font-sans relative overflow-hidden transition-all duration-500`}>
+            {/* Global Template Styles */}
+            <style jsx global>{`
+                .glass-panel-burnout {
+                    background: ${isDarkMode ? 'rgba(30, 41, 59, 0.65)' : 'rgba(255, 255, 255, 0.65)'};
+                    backdrop-filter: blur(12px);
+                    -webkit-backdrop-filter: blur(12px);
+                    border: 1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.4)'};
+                }
+                .clay-card-burnout {
+                    background-color: ${isDarkMode ? '#1e293b' : '#FDFBF7'};
+                    border-radius: 1.5rem;
+                    box-shadow: ${isDarkMode
+                    ? '8px 8px 16px 0px rgba(0, 0, 0, 0.4), -8px -8px 16px 0px rgba(255, 255, 255, 0.02)'
+                    : '8px 8px 16px 0px #E6E1D6, -8px -8px 16px 0px #FFFFFF'};
+                }
+            `}</style>
             {/* Ambient Background Effects */}
             <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
                 {/* Blobs */}

@@ -19,7 +19,10 @@ import {
     Sparkles,
     Calendar,
     Clock,
-    Tag
+    Tag,
+    Paperclip,
+    FileText,
+    X
 } from "lucide-react";
 import ProductiveChat from "./ProductiveChat";
 import IdeaVault from "./IdeaVault";
@@ -221,6 +224,16 @@ export default function ProductiveView() {
                         setTotalWorkTime(0); // Reset work time
                         toast.success("✨ Rest complete! You're refreshed and ready to go!");
                         new Audio("/notification.mp3").play().catch(() => { });
+
+                        // Auto-resume: Start timer again if there's an active task
+                        // We'll use a timeout to ensure state is updated
+                        setTimeout(() => {
+                            setIsRunning(true);
+                            toast.info("▶️ Resuming your focus session!", {
+                                duration: 3000,
+                            });
+                        }, 500);
+
                         return 0;
                     }
                     return prev - 1;
@@ -274,13 +287,35 @@ export default function ProductiveView() {
         const completedTask = { ...activeTask, isCompleted: true };
         setCompletedTasks([...completedTasks, completedTask]);
 
-        // Remove from tasks
-        setTasks(tasks.filter((t) => t.id !== activeTask.id));
-        setActiveTask(null);
-        setIsRunning(false);
+        // Remove from tasks and get remaining tasks
+        const remainingTasks = tasks.filter((t) => t.id !== activeTask.id);
+        setTasks(remainingTasks);
 
         toast.success("Task crushed! 🔥");
         new Audio("/notification.mp3").play().catch(() => { });
+
+        // Auto-advance to next task if available
+        if (remainingTasks.length > 0) {
+            const nextTask = remainingTasks[0];
+            setActiveTask(nextTask);
+            setSessionDuration(nextTask.duration);
+            setTimeLeft(nextTask.duration * 60);
+            setIsRunning(true);
+
+            // Notify user about next task
+            setTimeout(() => {
+                toast.info(`⏭️ Moving to next task: ${nextTask.action}`, {
+                    duration: 3000,
+                });
+            }, 1000);
+        } else {
+            // No more tasks
+            setActiveTask(null);
+            setIsRunning(false);
+            toast.success("🎉 All tasks completed! Great job!", {
+                duration: 5000,
+            });
+        }
     };
 
     const handleBreakDown = async (text: string, reprompt?: string) => {
@@ -515,8 +550,30 @@ export default function ProductiveView() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 p-6 relative overflow-hidden">
-            {/* Decorative Background Elements - from EnergyGate */}
+        <div className="min-h-screen bg-[#f0f4f9] p-6 relative overflow-hidden font-[system-ui]">
+            {/* Global Template Styles */}
+            <style jsx global>{`
+                .glass-panel {
+                    background: rgba(255, 255, 255, 0.65);
+                    backdrop-filter: blur(12px);
+                    -webkit-backdrop-filter: blur(12px);
+                    border: 1px solid rgba(255, 255, 255, 0.6);
+                }
+                .shadow-clay-card {
+                    box-shadow: 8px 8px 16px rgba(166, 180, 200, 0.4), -8px -8px 16px rgba(255, 255, 255, 1), inset 2px 2px 4px rgba(255, 255, 255, 0.5);
+                }
+                .shadow-clay-input {
+                    box-shadow: inset 4px 4px 8px rgba(166, 180, 200, 0.4), inset -4px -4px 8px rgba(255, 255, 255, 1);
+                }
+                .clay-card-hover {
+                    transition: transform 0.2s ease, box-shadow 0.2s ease;
+                }
+                .clay-card-hover:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 10px 10px 20px rgba(166, 180, 200, 0.5), -10px -10px 20px rgba(255, 255, 255, 1);
+                }
+            `}</style>
+            {/* Abstract Background Shapes */}
             <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
                 {/* Blobs */}
                 <div className="absolute top-[-20%] left-[-20%] w-96 h-96 bg-blue-200/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob" />
@@ -884,9 +941,9 @@ export default function ProductiveView() {
                     {/* ==================== RIGHT COLUMN: MASTER LIST ==================== */}
                     <div className="lg:col-span-2 space-y-6">
 
+                        {/* ==================== SMART INPUT (now first) ==================== */}
                         {/* Smart Omnibar Input - Disabled when Soft Locked */}
                         {isSoftLocked ? (
-                            /* Soft Lock State - Rest Message */
                             <div className="bg-gradient-to-br from-indigo-50 to-purple-100 rounded-[32px] p-8 shadow-lg border-2 border-indigo-200 text-center">
                                 <div className="text-6xl mb-4">🌙</div>
                                 <h3 className="text-xl font-bold text-indigo-700 mb-2">
@@ -979,75 +1036,83 @@ export default function ProductiveView() {
                                     </div>
                                 </div>
 
-                                {/* File Attachments - Compact inline */}
-                                <div className="mb-4 flex items-center gap-3 flex-wrap">
-                                    {/* File Previews */}
-                                    {breakdownAttachments.map((file, index) => (
-                                        <div key={`${file.name}-${index}`} className="relative">
-                                            <div className="relative bg-slate-100 rounded-lg border border-slate-200 overflow-hidden flex items-center gap-2 pl-2 pr-1 py-1">
-                                                {file.preview ? (
-                                                    <img src={file.preview} alt={file.name} className="w-8 h-8 object-cover rounded" />
-                                                ) : (
-                                                    <div className="w-8 h-8 flex items-center justify-center bg-red-100 rounded">
-                                                        <span className="text-[10px] text-red-600 font-bold">PDF</span>
-                                                    </div>
-                                                )}
-                                                <span className="text-xs text-slate-600 font-medium max-w-[100px] truncate">{file.name}</span>
-                                                <button
-                                                    onClick={() => setBreakdownAttachments(breakdownAttachments.filter((_, i) => i !== index))}
-                                                    className="w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 text-xs"
-                                                >
-                                                    ×
-                                                </button>
-                                            </div>
+                                {/* File Attachments Preview */}
+                                {breakdownAttachments.length > 0 && (
+                                    <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                            <Paperclip size={12} />
+                                            Attached Files ({breakdownAttachments.length}/3)
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {breakdownAttachments.map((file, index) => (
+                                                <div key={index} className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-200">
+                                                    {file.preview ? (
+                                                        <img src={file.preview} alt={file.name} className="w-8 h-8 rounded object-cover" />
+                                                    ) : (
+                                                        <FileText size={16} className="text-slate-400" />
+                                                    )}
+                                                    <span className="text-xs text-slate-600 font-medium truncate max-w-[100px]">{file.name}</span>
+                                                    <button
+                                                        onClick={() => setBreakdownAttachments(breakdownAttachments.filter((_, i) => i !== index))}
+                                                        className="text-slate-400 hover:text-red-500 transition-colors"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
+                                    </div>
+                                )}
 
-                                    {/* Attach Button */}
-                                    {breakdownAttachments.length < 3 && (
-                                        <button
-                                            onClick={() => document.getElementById('breakdown-file-input')?.click()}
-                                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors border-2 border-dashed border-slate-200 hover:border-slate-300"
-                                        >
-                                            📎 Attach file
-                                        </button>
-                                    )}
-
-                                    {/* Hidden File Input */}
-                                    <input
-                                        id="breakdown-file-input"
-                                        type="file"
-                                        accept="image/*,application/pdf"
-                                        multiple
-                                        onChange={async (e) => {
-                                            if (!e.target.files) return;
-                                            const newFiles: FileAttachment[] = [];
-                                            for (let i = 0; i < e.target.files.length && breakdownAttachments.length + newFiles.length < 3; i++) {
-                                                const file = e.target.files[i];
-                                                if (file.size > 10 * 1024 * 1024) {
-                                                    toast.error(`File "${file.name}" exceeds 10MB limit. Please choose a smaller file.`);
-                                                    continue;
+                                {/* File Upload Button */}
+                                <div className="mb-4">
+                                    <label
+                                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-dashed cursor-pointer transition-all
+                                            ${breakdownAttachments.length >= 3
+                                                ? 'border-slate-200 text-slate-300 cursor-not-allowed'
+                                                : 'border-slate-300 text-slate-500 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50'
+                                            }`}
+                                    >
+                                        <Paperclip size={16} />
+                                        <span className="text-sm font-medium">
+                                            {breakdownAttachments.length >= 3 ? 'Max files reached' : 'Attach files to analyze'}
+                                        </span>
+                                        <input
+                                            type="file"
+                                            accept="image/*,application/pdf"
+                                            multiple
+                                            disabled={breakdownAttachments.length >= 3}
+                                            onChange={async (e) => {
+                                                if (!e.target.files) return;
+                                                const newFiles: typeof breakdownAttachments = [];
+                                                for (let i = 0; i < e.target.files.length && breakdownAttachments.length + newFiles.length < 3; i++) {
+                                                    const file = e.target.files[i];
+                                                    // Check file size (10MB limit)
+                                                    if (file.size > 10 * 1024 * 1024) {
+                                                        toast.error(`File "${file.name}" exceeds 10MB limit`);
+                                                        continue;
+                                                    }
+                                                    const reader = new FileReader();
+                                                    const result = await new Promise<string>((resolve) => {
+                                                        reader.onload = (ev) => resolve(ev.target?.result as string);
+                                                        reader.readAsDataURL(file);
+                                                    });
+                                                    newFiles.push({
+                                                        data: result.split(',')[1],
+                                                        mimeType: file.type,
+                                                        name: file.name,
+                                                        size: file.size,
+                                                        preview: file.type.startsWith('image/') ? result : undefined,
+                                                    });
                                                 }
-                                                const reader = new FileReader();
-                                                const result = await new Promise<string>((resolve) => {
-                                                    reader.onload = (ev) => resolve(ev.target?.result as string);
-                                                    reader.readAsDataURL(file);
-                                                });
-                                                newFiles.push({
-                                                    data: result.split(',')[1],
-                                                    mimeType: file.type,
-                                                    name: file.name,
-                                                    size: file.size,
-                                                    preview: file.type.startsWith('image/') ? result : undefined,
-                                                });
-                                            }
-                                            if (newFiles.length > 0) {
-                                                setBreakdownAttachments([...breakdownAttachments, ...newFiles]);
-                                            }
-                                            e.target.value = '';
-                                        }}
-                                        className="hidden"
-                                    />
+                                                if (newFiles.length > 0) {
+                                                    setBreakdownAttachments([...breakdownAttachments, ...newFiles]);
+                                                }
+                                                e.target.value = '';
+                                            }}
+                                            className="hidden"
+                                        />
+                                    </label>
                                 </div>
 
                                 {/* Action Buttons */}
@@ -1098,7 +1163,7 @@ export default function ProductiveView() {
                             </div>
                         )}
 
-                        {/* ==================== TODAY'S FOCUS (Top 3) ==================== */}
+                        {/* ==================== TODAY'S FOCUS (Top 3) - now after Smart Input ==================== */}
                         {!isLoading && tasks.length > 0 && (
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between px-2">
@@ -1110,7 +1175,7 @@ export default function ProductiveView() {
                                         </span>
                                     </h3>
                                     <p className="text-sm text-slate-400 font-medium">
-                                        Click <Play size={12} className="inline mx-1" /> to start
+                                        ▶ Click to start
                                     </p>
                                 </div>
 
@@ -1143,7 +1208,6 @@ export default function ProductiveView() {
                                 </div>
                             </div>
                         )}
-
                         {/* ==================== BACKLOG (Tasks 4+) ==================== */}
                         {!isLoading && tasks.length > 3 && (
                             <div className="bg-slate-50 rounded-3xl p-4 border border-slate-200">
@@ -1392,8 +1456,20 @@ function TaskRow({
 
             {/* Expanded State - Shows Details */}
             {isExpanded && (
-                <div className="px-4 pb-4 animate-slideDown border-t border-slate-100">
-                    <div className="pt-4 pl-12">
+                <div className="overflow-hidden">
+                    {/* Divider Line - aligned with content */}
+                    <div className="pl-16 pr-4">
+                        <div className="border-t border-slate-200" />
+                    </div>
+
+                    {/* Task Details Content - animates from top (origin at divider) */}
+                    <div
+                        className="px-4 py-4 pl-16 bg-gradient-to-b from-slate-50/50 to-white"
+                        style={{
+                            animation: 'expandFromTop 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+                            transformOrigin: 'top center',
+                        }}
+                    >
                         <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                             Task Details
                         </h4>
@@ -1404,12 +1480,31 @@ function TaskRow({
                         {task.source && (
                             <div className="flex items-center gap-2 text-xs text-slate-400">
                                 <span className="font-bold">Source:</span>
-                                <span className="bg-slate-50 px-2 py-1 rounded-full border border-slate-200">
+                                <span className="bg-white px-2 py-1 rounded-full border border-slate-200">
                                     {task.source}
                                 </span>
                             </div>
                         )}
                     </div>
+
+                    <style jsx>{`
+                        @keyframes expandFromTop {
+                            0% {
+                                opacity: 0;
+                                max-height: 0;
+                                transform: scaleY(0) translateY(-8px);
+                            }
+                            60% {
+                                opacity: 0.8;
+                                transform: scaleY(1.02) translateY(0);
+                            }
+                            100% {
+                                opacity: 1;
+                                max-height: 500px;
+                                transform: scaleY(1) translateY(0);
+                            }
+                        }
+                    `}</style>
                 </div>
             )}
 

@@ -6,73 +6,75 @@ export async function POST(req: Request) {
     const { task, attachments = [], reprompt }: { task: string; attachments?: Attachment[]; reprompt?: string } = await req.json();
 
     const systemPrompt = `
-      You are an expert at breaking down overwhelming tasks into ULTRA-MICRO tasks that take only 3-5 minutes each.
-      Your goal is to make the user feel "I can do this RIGHT NOW" by creating tiny, non-intimidating steps.
+      Kamu adalah ahli dalam memecah tugas yang melelahkan menjadi tugas ULTRA-MIKRO yang hanya membutuhkan 3-5 menit setiap langkah.
+      Tujuanmu adalah membuat pengguna merasa "Aku bisa melakukan ini SEKARANG" dengan menciptakan langkah-langkah kecil yang tidak mengintimidasi.
 
-      CRITICAL RULES:
-      1. Each task MUST be completable in 3-5 minutes MAX
-      2. Use action verbs that feel quick: "Skim", "Jot", "Find", "Open", "Read 1 page", "Watch 2 min"
-      3. First task should be a "just start" task - something trivial to build momentum
-      4. Avoid vague tasks - be SPECIFIC about what to do
-      5. Maximum 5-6 tasks total
+      ATURAN PENTING:
+      1. Setiap tugas HARUS bisa diselesaikan dalam 3-5 menit MAKSIMAL
+      2. Gunakan kata kerja yang terasa cepat: "Skim", "Catat", "Cari", "Buka", "Baca 1 halaman", "Tonton 2 menit"
+      3. Tugas pertama harus tugas "mulai saja" - sesuatu yang sepele untuk membangun momentum
+      4. Hindari tugas yang samar - SPESIFIK tentang apa yang harus dilakukan
+      5. Maksimal 5-6 tugas total
 
-      If the user provides an image or document (like a syllabus, screenshot, or notes):
-      - Carefully analyze the content
-      - Extract topics and create ultra-micro learning steps
-      - Be specific about page numbers, sections, or items from the document
+      Jika pengguna memberikan gambar atau dokumen (seperti silabus, screenshot, atau catatan):
+      - Analisis konten dengan cermat
+      - Ekstrak topik dan buat langkah pembelajaran ultra-mikro
+      - Spesifik tentang nomor halaman, bagian, atau item dari dokumen
 
-      For each task, provide:
-      1. "action": A punchy verb phrase (2-4 words). E.g., "Skim Chapter 1", "Write 3 Keywords"
-      2. "summary": One sentence explaining the micro-goal
-      3. "duration": Always 5 (representing 5 minutes)
-      4. "energy": "Recovery" (very easy), "Shallow Work" (easy), or "Deep Work" (focused but short)
-      5. "source": "Document Analysis" if from attachment, otherwise "User Goal"
+      Untuk setiap tugas, berikan:
+      1. "action": Frasa kata kerja singkat (2-4 kata). Contoh: "Buka Catatan", "Tulis 3 Kata Kunci"
+      2. "summary": Satu kalimat menjelaskan tujuan mikro
+      3. "duration": Selalu 5 (mewakili 5 menit)
+      4. "energy": "Recovery" (sangat mudah), "Shallow Work" (mudah), atau "Deep Work" (fokus tapi singkat)
+      5. "source": "Analisis Dokumen" jika dari lampiran, jika tidak "Tujuan Pengguna"
 
-      ${reprompt ? `USER FEEDBACK: The user wants you to adjust: "${reprompt}". Please regenerate tasks accordingly.` : ''}
+      ${reprompt ? `UMPAN BALIK PENGGUNA: Pengguna ingin kamu menyesuaikan: "${reprompt}". Harap regenerasi tugas sesuai permintaan.` : ''}
 
-      Return ONLY a JSON array. No markdown, no explanation.
+      PENTING: Semua teks dalam JSON harus dalam Bahasa Indonesia.
+      Kembalikan HANYA array JSON. Tanpa markdown, tanpa penjelasan.
 
-      Example for "I need to study for my calculus exam":
+      Contoh untuk "Saya perlu belajar untuk ujian kalkulus":
       [
         {
-          "action": "Open Notes",
-          "summary": "Just open your calculus notes or textbook to the relevant chapter",
+          "action": "Buka Catatan",
+          "summary": "Buka catatan kalkulus atau buku teks ke bab yang relevan",
           "duration": 5,
           "energy": "Recovery",
-          "source": "User Goal"
+          "source": "Tujuan Pengguna"
         },
         {
-          "action": "Skim Formulas",
-          "summary": "Quickly scan the main formulas for 3 minutes - don't memorize yet",
+          "action": "Skim Rumus",
+          "summary": "Pindai cepat rumus-rumus utama selama 3 menit - belum perlu menghafal",
           "duration": 5,
           "energy": "Shallow Work",
-          "source": "User Goal"
+          "source": "Tujuan Pengguna"
         },
         {
-          "action": "Solve 1 Problem",
-          "summary": "Pick the easiest practice problem and solve it",
+          "action": "Kerjakan 1 Soal",
+          "summary": "Pilih soal latihan termudah dan selesaikan",
           "duration": 5,
           "energy": "Deep Work",
-          "source": "User Goal"
+          "source": "Tujuan Pengguna"
         },
         {
-          "action": "Write 3 Questions",
-          "summary": "Jot down 3 things you're confused about",
+          "action": "Tulis 3 Pertanyaan",
+          "summary": "Catat 3 hal yang membingungkanmu",
           "duration": 5,
           "energy": "Shallow Work",
-          "source": "User Goal"
+          "source": "Tujuan Pengguna"
         }
       ]
     `;
 
     const messageText = attachments.length > 0
-      ? `Analyze the attached file(s) and break down into 5-min micro-tasks. User request: "${task}"`
-      : `Break down this into 5-min micro-tasks: "${task}"`;
+      ? `Analisis file terlampir dan pecah menjadi tugas mikro 5 menit. Permintaan pengguna: "${task}"`
+      : `Pecah ini menjadi tugas mikro 5 menit: "${task}"`;
 
     const responseText = await callGemini({
       message: messageText,
       systemPrompt,
       attachments,
+      modelName: "gemini-2.5-pro",
     });
 
     // Clean up markdown code blocks if present

@@ -221,6 +221,16 @@ export default function ProductiveView() {
                         setTotalWorkTime(0); // Reset work time
                         toast.success("✨ Rest complete! You're refreshed and ready to go!");
                         new Audio("/notification.mp3").play().catch(() => { });
+                        
+                        // Auto-resume: Start timer again if there's an active task
+                        // We'll use a timeout to ensure state is updated
+                        setTimeout(() => {
+                            setIsRunning(true);
+                            toast.info("▶️ Resuming your focus session!", {
+                                duration: 3000,
+                            });
+                        }, 500);
+                        
                         return 0;
                     }
                     return prev - 1;
@@ -274,13 +284,35 @@ export default function ProductiveView() {
         const completedTask = { ...activeTask, isCompleted: true };
         setCompletedTasks([...completedTasks, completedTask]);
 
-        // Remove from tasks
-        setTasks(tasks.filter((t) => t.id !== activeTask.id));
-        setActiveTask(null);
-        setIsRunning(false);
+        // Remove from tasks and get remaining tasks
+        const remainingTasks = tasks.filter((t) => t.id !== activeTask.id);
+        setTasks(remainingTasks);
 
         toast.success("Task crushed! 🔥");
         new Audio("/notification.mp3").play().catch(() => { });
+
+        // Auto-advance to next task if available
+        if (remainingTasks.length > 0) {
+            const nextTask = remainingTasks[0];
+            setActiveTask(nextTask);
+            setSessionDuration(nextTask.duration);
+            setTimeLeft(nextTask.duration * 60);
+            setIsRunning(true);
+            
+            // Notify user about next task
+            setTimeout(() => {
+                toast.info(`⏭️ Moving to next task: ${nextTask.action}`, {
+                    duration: 3000,
+                });
+            }, 1000);
+        } else {
+            // No more tasks
+            setActiveTask(null);
+            setIsRunning(false);
+            toast.success("🎉 All tasks completed! Great job!", {
+                duration: 5000,
+            });
+        }
     };
 
     const handleBreakDown = async (text: string, reprompt?: string) => {
@@ -884,6 +916,52 @@ export default function ProductiveView() {
                     {/* ==================== RIGHT COLUMN: MASTER LIST ==================== */}
                     <div className="lg:col-span-2 space-y-6">
 
+                        {/* ==================== TODAY'S FOCUS (Top 3) ==================== */}
+                        {!isLoading && tasks.length > 0 && (
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between px-2">
+                                    <h3 className="text-xl font-black text-slate-700 flex items-center gap-2">
+                                        <span className="text-2xl">🎯</span>
+                                        Today's Focus
+                                        <span className="text-sm font-medium text-blue-500 bg-blue-50 px-2 py-1 rounded-full">
+                                            Top 3
+                                        </span>
+                                    </h3>
+                                    <p className="text-sm text-slate-400 font-medium">
+                                        ▶ Click to start
+                                    </p>
+                                </div>
+
+                                {/* Top 3 Tasks - Highlighted */}
+                                <div className="space-y-3">
+                                    {tasks.slice(0, 3).map((task, index) => (
+                                        <div key={task.id} className="relative">
+                                            {/* Priority Badge */}
+                                            <div className="absolute -left-2 -top-2 z-10 w-7 h-7 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-black shadow-lg">
+                                                {index + 1}
+                                            </div>
+                                            <TaskRow
+                                                task={task}
+                                                index={index}
+                                                isActive={activeTask?.id === task.id}
+                                                isExpanded={expandedTaskId === task.id}
+                                                onPlay={() => handlePlayTask(task)}
+                                                onToggle={() => handleToggleTaskComplete(task.id)}
+                                                onDelete={() => handleDeleteTask(task.id)}
+                                                onExpand={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
+                                                onDragStart={handleDragStart}
+                                                onDragEnter={handleDragEnter}
+                                                onDragEnd={handleDragEnd}
+                                                isDragging={draggedIndex === index}
+                                                getTagColor={getTagColor}
+                                                isTopFocus={true}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Smart Omnibar Input - Disabled when Soft Locked */}
                         {isSoftLocked ? (
                             /* Soft Lock State - Rest Message */
@@ -1094,52 +1172,6 @@ export default function ProductiveView() {
                                 <div>
                                     <p className="font-bold text-amber-700">Task limit reached ({MAX_TASKS} tasks)</p>
                                     <p className="text-sm text-amber-600">Complete some tasks before adding more. Quality over quantity!</p>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* ==================== TODAY'S FOCUS (Top 3) ==================== */}
-                        {!isLoading && tasks.length > 0 && (
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between px-2">
-                                    <h3 className="text-xl font-black text-slate-700 flex items-center gap-2">
-                                        <span className="text-2xl">🎯</span>
-                                        Today's Focus
-                                        <span className="text-sm font-medium text-blue-500 bg-blue-50 px-2 py-1 rounded-full">
-                                            Top 3
-                                        </span>
-                                    </h3>
-                                    <p className="text-sm text-slate-400 font-medium">
-                                        Click <Play size={12} className="inline mx-1" /> to start
-                                    </p>
-                                </div>
-
-                                {/* Top 3 Tasks - Highlighted */}
-                                <div className="space-y-3">
-                                    {tasks.slice(0, 3).map((task, index) => (
-                                        <div key={task.id} className="relative">
-                                            {/* Priority Badge */}
-                                            <div className="absolute -left-2 -top-2 z-10 w-7 h-7 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-black shadow-lg">
-                                                {index + 1}
-                                            </div>
-                                            <TaskRow
-                                                task={task}
-                                                index={index}
-                                                isActive={activeTask?.id === task.id}
-                                                isExpanded={expandedTaskId === task.id}
-                                                onPlay={() => handlePlayTask(task)}
-                                                onToggle={() => handleToggleTaskComplete(task.id)}
-                                                onDelete={() => handleDeleteTask(task.id)}
-                                                onExpand={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
-                                                onDragStart={handleDragStart}
-                                                onDragEnter={handleDragEnter}
-                                                onDragEnd={handleDragEnd}
-                                                isDragging={draggedIndex === index}
-                                                getTagColor={getTagColor}
-                                                isTopFocus={true}
-                                            />
-                                        </div>
-                                    ))}
                                 </div>
                             </div>
                         )}
@@ -1392,8 +1424,20 @@ function TaskRow({
 
             {/* Expanded State - Shows Details */}
             {isExpanded && (
-                <div className="px-4 pb-4 animate-slideDown border-t border-slate-100">
-                    <div className="pt-4 pl-12">
+                <div className="overflow-hidden">
+                    {/* Divider Line - aligned with content */}
+                    <div className="pl-16 pr-4">
+                        <div className="border-t border-slate-200" />
+                    </div>
+                    
+                    {/* Task Details Content - animates from top (origin at divider) */}
+                    <div 
+                        className="px-4 py-4 pl-16 bg-gradient-to-b from-slate-50/50 to-white"
+                        style={{
+                            animation: 'expandFromTop 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+                            transformOrigin: 'top center',
+                        }}
+                    >
                         <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                             Task Details
                         </h4>
@@ -1404,12 +1448,31 @@ function TaskRow({
                         {task.source && (
                             <div className="flex items-center gap-2 text-xs text-slate-400">
                                 <span className="font-bold">Source:</span>
-                                <span className="bg-slate-50 px-2 py-1 rounded-full border border-slate-200">
+                                <span className="bg-white px-2 py-1 rounded-full border border-slate-200">
                                     {task.source}
                                 </span>
                             </div>
                         )}
                     </div>
+                    
+                    <style jsx>{`
+                        @keyframes expandFromTop {
+                            0% {
+                                opacity: 0;
+                                max-height: 0;
+                                transform: scaleY(0) translateY(-8px);
+                            }
+                            60% {
+                                opacity: 0.8;
+                                transform: scaleY(1.02) translateY(0);
+                            }
+                            100% {
+                                opacity: 1;
+                                max-height: 500px;
+                                transform: scaleY(1) translateY(0);
+                            }
+                        }
+                    `}</style>
                 </div>
             )}
 

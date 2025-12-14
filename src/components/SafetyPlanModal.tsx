@@ -13,7 +13,7 @@ interface SafetyPlanModalProps {
 interface EmergencyContact {
     name: string;
     phone: string;
-} 
+}
 
 const STORAGE_KEY = "synapse-safety-plan";
 
@@ -31,6 +31,7 @@ export default function SafetyPlanModal({ isOpen, onClose, isDarkMode = true }: 
     const [newCoping, setNewCoping] = useState("");
     const [newContactName, setNewContactName] = useState("");
     const [newContactPhone, setNewContactPhone] = useState("");
+    const [phoneError, setPhoneError] = useState("");
 
     // Load from localStorage
     useEffect(() => {
@@ -74,12 +75,38 @@ export default function SafetyPlanModal({ isOpen, onClose, isDarkMode = true }: 
         }
     };
 
-    const addContact = () => {
-        if (newContactName.trim() && newContactPhone.trim()) {
-            setEmergencyContacts([...emergencyContacts, { name: newContactName.trim(), phone: newContactPhone.trim() }]);
-            setNewContactName("");
-            setNewContactPhone("");
+    // Validate phone number - only allow numbers, +, -, spaces, and parentheses
+    const isValidPhone = (phone: string): boolean => {
+        const phoneRegex = /^[0-9+\-()\s]+$/;
+        return phoneRegex.test(phone) && phone.replace(/[^0-9]/g, '').length >= 3;
+    };
+
+    const handlePhoneChange = (value: string) => {
+        // Allow empty or valid phone characters
+        if (value === '' || /^[0-9+\-()\s]*$/.test(value)) {
+            setNewContactPhone(value);
+            setPhoneError("");
+        } else {
+            setPhoneError("Hanya angka dan karakter +, -, (, ) yang diizinkan");
         }
+    };
+
+    const addContact = () => {
+        if (!newContactName.trim()) {
+            return;
+        }
+        if (!newContactPhone.trim()) {
+            setPhoneError("Nomor telepon harus diisi");
+            return;
+        }
+        if (!isValidPhone(newContactPhone.trim())) {
+            setPhoneError("Nomor telepon tidak valid (minimal 3 digit)");
+            return;
+        }
+        setEmergencyContacts([...emergencyContacts, { name: newContactName.trim(), phone: newContactPhone.trim() }]);
+        setNewContactName("");
+        setNewContactPhone("");
+        setPhoneError("");
     };
 
     const removeItem = (type: "warning" | "coping" | "contact", index: number) => {
@@ -377,13 +404,20 @@ export default function SafetyPlanModal({ isOpen, onClose, isDarkMode = true }: 
                                         placeholder="Nama..."
                                         className="flex-1 px-4 py-3 rounded-2xl text-sm bg-white/10 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-green-400/50 transition-all"
                                     />
-                                    <input
-                                        type="tel"
-                                        value={newContactPhone}
-                                        onChange={(e) => setNewContactPhone(e.target.value)}
-                                        placeholder="Nomor HP..."
-                                        className="flex-1 px-4 py-3 rounded-2xl text-sm bg-white/10 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-green-400/50 transition-all"
-                                    />
+                                    <div className="flex-1 flex flex-col">
+                                        <input
+                                            type="tel"
+                                            value={newContactPhone}
+                                            onChange={(e) => handlePhoneChange(e.target.value)}
+                                            onKeyDown={(e) => e.key === "Enter" && addContact()}
+                                            placeholder="Nomor HP..."
+                                            className={`w-full px-4 py-3 rounded-2xl text-sm bg-white/10 border text-white placeholder-white/30 focus:outline-none focus:ring-2 transition-all ${phoneError ? "border-red-500/50 focus:ring-red-400/50" : "border-white/10 focus:ring-green-400/50"
+                                                }`}
+                                        />
+                                        {phoneError && (
+                                            <span className="mt-1 text-xs text-red-400">{phoneError}</span>
+                                        )}
+                                    </div>
                                     <motion.button
                                         whileHover={{ scale: 1.05 }}
                                         whileTap={{ scale: 0.95 }}

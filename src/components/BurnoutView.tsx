@@ -5,7 +5,7 @@ import { useEnergyStore } from "@/store/useEnergyStore";
 import { ArrowLeft, Moon, Sun, Send, Music, Wind, Shield, BookHeart } from "lucide-react";
 import BreathingModal from "./BreathingModal";
 import SafetyPlanModal from "./SafetyPlanModal";
-import GrowthGarden from "./GrowthGarden";
+import GrowthGarden, { addWellnessPoints } from "./GrowthGarden";
 import QuickJournal from "./QuickJournal";
 
 // Chat message type
@@ -75,6 +75,7 @@ export default function BurnoutView() {
     const [isSoundOn, setIsSoundOn] = useState(false);
     const [selectedSound, setSelectedSound] = useState<string | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const pendingPlayRef = useRef(false); // Track if we need to play after audio is ready
 
     // Breathing Modal State
     const [isBreathingOpen, setIsBreathingOpen] = useState(false);
@@ -204,15 +205,29 @@ export default function BurnoutView() {
         // Pause current audio if playing
         if (audioRef.current) {
             audioRef.current.pause();
+            audioRef.current = null;
         }
 
-        audioRef.current = new Audio(soundOption.url);
-        audioRef.current.loop = true;
-        audioRef.current.volume = 0.3;
+        const audio = new Audio(soundOption.url);
+        audio.loop = true;
+        audio.volume = 0.3;
+        audioRef.current = audio;
 
-        // Resume playing if sound was on
+        // Handle canplaythrough event for pending play
+        const handleCanPlay = () => {
+            if (pendingPlayRef.current) {
+                audio.play().catch(console.error);
+                pendingPlayRef.current = false;
+            }
+        };
+        audio.addEventListener('canplaythrough', handleCanPlay);
+
+        // If sound was already on (e.g., on initial load), try to play
         if (isSoundOn) {
-            audioRef.current.play().catch(() => { });
+            audio.play().catch(() => {
+                // If play fails (common on first interaction), set pending
+                pendingPlayRef.current = true;
+            });
         }
 
         // Save preference
@@ -225,12 +240,25 @@ export default function BurnoutView() {
         }
 
         return () => {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current = null;
-            }
+            audio.removeEventListener('canplaythrough', handleCanPlay);
+            audio.pause();
+            audioRef.current = null;
         };
     }, [selectedSound]);
+
+    // Watch for isSoundOn changes to play/pause
+    useEffect(() => {
+        if (!audioRef.current) return;
+
+        if (isSoundOn) {
+            audioRef.current.play().catch(() => {
+                pendingPlayRef.current = true;
+            });
+        } else {
+            audioRef.current.pause();
+            pendingPlayRef.current = false;
+        }
+    }, [isSoundOn]);
 
     // Load chat history
     useEffect(() => {
@@ -265,21 +293,18 @@ export default function BurnoutView() {
 
     const toggleSound = () => {
         if (!audioRef.current) return;
-        if (isSoundOn) {
-            audioRef.current.pause();
-        } else {
-            audioRef.current.play().catch(() => { });
-        }
         setIsSoundOn(!isSoundOn);
     };
 
     const handleSoundSelect = (soundId: string) => {
         if (selectedSound === soundId && isSoundOn) {
             // Same sound clicked while playing - stop it
-            audioRef.current?.pause();
             setIsSoundOn(false);
+        } else if (selectedSound === soundId && !isSoundOn) {
+            // Same sound but not playing - play it
+            setIsSoundOn(true);
         } else {
-            // Different sound or not playing - play it
+            // Different sound - select it and play
             setSelectedSound(soundId);
             setIsSoundOn(true);
         }
@@ -311,6 +336,8 @@ export default function BurnoutView() {
             if (response.ok) {
                 const data = await response.json();
                 setChatMessages((prev) => [...prev, { role: "ai", content: data.message }]);
+                // Award wellness points for chat interaction
+                addWellnessPoints("chat", 3);
             }
         } catch (error) {
             console.error("Chat error:", error);

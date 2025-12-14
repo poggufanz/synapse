@@ -7,6 +7,7 @@ import { useEnergyStore } from "@/store/useEnergyStore";
 import { Send, Bot, ArrowLeft, Sparkles, MessageSquare, Zap, Paperclip, X, FileText, Brain, ChevronDown, Plus, Trash2, Menu, PanelLeftClose } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import FileUploadButton, { FileAttachment } from "@/components/FileUploadButton";
+import ReactMarkdown from "react-markdown";
 
 type ThinkingMode = "off" | "dynamic" | "low" | "medium" | "high";
 
@@ -259,8 +260,8 @@ export default function SparringPartnerPage() {
                                             key={conv.id}
                                             onClick={() => selectConversation(conv)}
                                             className={`w-full group flex items-center gap-2 px-3 py-2.5 rounded-lg text-left transition-all ${currentConversationId === conv.id
-                                                    ? "bg-slate-800 text-white"
-                                                    : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
+                                                ? "bg-slate-800 text-white"
+                                                : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
                                                 }`}
                                         >
                                             <MessageSquare size={16} className="shrink-0" />
@@ -371,7 +372,13 @@ export default function SparringPartnerPage() {
                                             <span className="text-xs font-medium text-blue-400">Sparring Partner</span>
                                         </div>
                                     )}
-                                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                    {msg.role === "ai" ? (
+                                        <div className="text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-strong:text-white prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-5 prose-ol:pl-5">
+                                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                    )}
                                 </div>
                             </div>
                         ))}

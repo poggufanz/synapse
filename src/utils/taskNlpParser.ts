@@ -63,7 +63,7 @@ export function parseTaskInput(input: string): ParsedTask {
     let hasScheduledTime = false;
 
     // Extract tags
-    const tagMatches = input.matchAll(TAG_PATTERN);
+    const tagMatches = Array.from(input.matchAll(TAG_PATTERN));
     for (const match of tagMatches) {
         tags.push(`#${match[1]}`);
         title = title.replace(match[0], '').trim();
@@ -92,12 +92,12 @@ export function parseTaskInput(input: string): ParsedTask {
             if (period && period.includes('am') && hours === 12) hours = 0;
 
             time = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-            
+
             // Format for display
             const displayHours = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
             const displayPeriod = hours >= 12 ? 'PM' : 'AM';
             timeText = `${displayHours}:${minutes.toString().padStart(2, '0')} ${displayPeriod}`;
-            
+
             hasScheduledTime = true;
             title = title.replace(match[0], '').trim();
             break;
@@ -110,7 +110,7 @@ export function parseTaskInput(input: string): ParsedTask {
         if (match) {
             const now = new Date();
             date = new Date(now);
-            
+
             if ('dayOffset' in datePattern && datePattern.dayOffset !== undefined) {
                 date.setDate(now.getDate() + datePattern.dayOffset);
                 dateText = datePattern.dayOffset === 0 ? 'Today' : 'Tomorrow';
@@ -121,7 +121,7 @@ export function parseTaskInput(input: string): ParsedTask {
                 date.setDate(now.getDate() + daysUntil);
                 dateText = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
             }
-            
+
             title = title.replace(match[0], '').trim();
             break;
         }
@@ -188,7 +188,7 @@ export function formatDuration(minutes: number): string {
 export function formatDeadline(date: Date): string {
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
-    
+
     const timeStr = date.toLocaleTimeString('en-US', {
         hour: 'numeric',
         minute: '2-digit',

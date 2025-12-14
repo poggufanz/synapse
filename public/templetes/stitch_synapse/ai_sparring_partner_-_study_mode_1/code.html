@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Synapse - AI Sparring Partner Study Mode</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "primary-light": "#4B85F6",
+                        "primary-dark": "#0A369D",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#111722",
+                        "surface-dark": "#1a2333",
+                        "surface-darker": "#151c29",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Noto Sans", "sans-serif"],
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                    boxShadow: {
+                        'clay': 'inset 2px 2px 4px rgba(255, 255, 255, 0.1), inset -2px -2px 4px rgba(0, 0, 0, 0.4), 4px 4px 8px rgba(0, 0, 0, 0.4)',
+                        'clay-active': 'inset 4px 4px 8px rgba(0, 0, 0, 0.4), inset -2px -2px 4px rgba(255, 255, 255, 0.05)',
+                        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+                        'glow': '0 0 15px rgba(19, 91, 236, 0.5)',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111722; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #232f48; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #344260; 
+        }
+
+        /* Glassmorphism utility */
+        .glass-panel {
+            background: rgba(26, 35, 51, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .clay-card {
+            background: #1e293b;
+            box-shadow: inset 1px 1px 2px rgba(255,255,255,0.05), inset -2px -2px 4px rgba(0,0,0,0.4), 4px 4px 10px rgba(0,0,0,0.3);
+            border-radius: 1rem;
+        }
+
+        .juicy-button {
+            transition: all 0.15s ease;
+        }
+        .juicy-button:active {
+            transform: scale(0.96);
+        }
+        
+        .typing-dot {
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-body text-slate-200 antialiased h-screen flex flex-col overflow-hidden">
+<!-- Top Navigation -->
+<header class="flex-none z-50 glass-panel border-b border-[#232f48]">
+<div class="px-6 py-3 flex items-center justify-between">
+<div class="flex items-center gap-4 text-white">
+<div class="size-8 text-primary flex items-center justify-center bg-primary/20 rounded-lg shadow-glow">
+<span class="material-symbols-outlined" style="font-size: 20px;">bolt</span>
+</div>
+<div>
+<h2 class="text-white text-lg font-bold font-display leading-tight tracking-[-0.015em]">Synapse</h2>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></span>
+<span class="text-xs font-medium text-emerald-400 font-display uppercase tracking-wider">Productive Mode</span>
+</div>
+</div>
+</div>
+<!-- Context Breadcrumbs / Selector -->
+<div class="hidden md:flex items-center bg-[#151c29] rounded-full px-4 py-1.5 border border-[#232f48]">
+<span class="text-slate-400 text-sm font-medium">Sparring Partner</span>
+<span class="material-symbols-outlined text-slate-600 mx-2 text-sm">chevron_right</span>
+<span class="text-slate-400 text-sm font-medium">Study</span>
+<span class="material-symbols-outlined text-slate-600 mx-2 text-sm">chevron_right</span>
+<span class="text-primary text-sm font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">neurology</span>
+                    Advanced Neural Networks
+                </span>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden md:flex items-center gap-6 mr-4">
+<a class="text-slate-400 hover:text-white text-sm font-medium transition-colors" href="#">Dashboard</a>
+<a class="text-white text-sm font-medium" href="#">Sparring Partner</a>
+<a class="text-slate-400 hover:text-white text-sm font-medium transition-colors" href="#">Energy Log</a>
+</div>
+<div class="flex gap-2">
+<button class="flex items-center justify-center w-10 h-10 rounded-xl bg-[#232f48] hover:bg-[#2d3b58] text-white transition-colors clay-card">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-dark text-white shadow-glow juicy-button">
+<div class="w-8 h-8 rounded-lg bg-white/20 overflow-hidden" data-alt="User profile avatar">
+<img alt="User" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUDvUkHLeExNmHDHBxZdY9rN8j9d-rRz-m9t1AnYbQGiAsgQ7JzHESzm8698fAxRgIXx3GqWpOFqWt1Ge2nAreId0i8wgsHRlr1b45LlOEDj3Z8qCyQ5_P7-NeOw_DFKRYsJQVUheMgLQbWzPpUluZxyfUfLQPDW4yeUAvDP4i64-t7Qpw3GcA6wlCvKIWvbX951yfMLvz55xDYeWWPgayR0xge-Qnx3VWTNUzrPPD241Y7MMIvAvbZLlfPAmnVmP6uN4Mm9aUmx1o"/>
+</div>
+</button>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 flex overflow-hidden relative">
+<!-- Left Sidebar: Chat History / Sessions (Collapsed on smaller screens) -->
+<aside class="w-64 flex-none hidden lg:flex flex-col border-r border-[#232f48] bg-[#111722]/50 backdrop-blur-sm">
+<div class="p-4 border-b border-[#232f48]/50">
+<button class="w-full flex items-center gap-2 px-4 py-3 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl border border-primary/20 transition-all font-medium font-display text-sm group">
+<span class="material-symbols-outlined group-hover:rotate-90 transition-transform">add</span>
+                    New Session
+                 </button>
+</div>
+<div class="flex-1 overflow-y-auto p-3 space-y-1">
+<p class="px-3 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Today</p>
+<div class="p-3 bg-[#1a2333] rounded-lg border border-[#232f48] cursor-pointer group">
+<div class="text-sm font-medium text-white mb-1 group-hover:text-primary transition-colors">Neural Networks</div>
+<div class="text-xs text-slate-400 truncate">Explain backpropagation...</div>
+</div>
+<div class="p-3 hover:bg-[#1a2333]/50 rounded-lg cursor-pointer transition-colors">
+<div class="text-sm font-medium text-slate-300">Quantum Mechanics 101</div>
+<div class="text-xs text-slate-500 truncate">Schrödinger's cat paradox</div>
+</div>
+<p class="px-3 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Yesterday</p>
+<div class="p-3 hover:bg-[#1a2333]/50 rounded-lg cursor-pointer transition-colors">
+<div class="text-sm font-medium text-slate-300">French Revolution</div>
+<div class="text-xs text-slate-500 truncate">Timeline of key events</div>
+</div>
+</div>
+<!-- Energy Status -->
+<div class="p-4 border-t border-[#232f48]/50">
+<div class="flex items-center justify-between mb-2">
+<span class="text-xs text-slate-400 font-medium">Mental Energy</span>
+<span class="text-xs text-emerald-400 font-bold">85%</span>
+</div>
+<div class="h-1.5 w-full bg-[#1a2333] rounded-full overflow-hidden">
+<div class="h-full bg-gradient-to-r from-primary to-emerald-400 w-[85%] rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+</div>
+</div>
+</aside>
+<!-- Center: Chat Interface -->
+<section class="flex-1 flex flex-col min-w-0 relative">
+<!-- Floating Topic Chips (Visible only inside chat area) -->
+<div class="absolute top-0 left-0 right-0 z-10 p-4 bg-gradient-to-b from-[#111722] to-transparent pointer-events-none">
+<div class="flex justify-center pointer-events-auto">
+<div class="inline-flex glass-panel rounded-full p-1 gap-1 shadow-lg">
+<button class="px-4 py-1.5 rounded-full bg-primary text-white text-xs font-bold shadow-lg flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">neurology</span>
+                            Neural Networks
+                        </button>
+<button class="px-4 py-1.5 rounded-full hover:bg-white/5 text-slate-400 text-xs font-medium transition-colors">
+                            Machine Learning
+                        </button>
+<button class="px-4 py-1.5 rounded-full hover:bg-white/5 text-slate-400 text-xs font-medium transition-colors">
+                            Deep Learning
+                        </button>
+</div>
+</div>
+</div>
+<!-- Chat Scroll Area -->
+<div class="flex-1 overflow-y-auto px-4 md:px-12 py-20 space-y-8 scroll-smooth" id="chat-container">
+<!-- AI Welcome Message -->
+<div class="flex gap-4 max-w-3xl mx-auto">
+<div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#232f48] to-[#111722] shadow-clay flex items-center justify-center shrink-0 border border-white/5">
+<span class="material-symbols-outlined text-primary">smart_toy</span>
+</div>
+<div class="flex flex-col gap-2">
+<div class="flex items-baseline gap-2">
+<span class="text-sm font-bold text-white font-display">Synapse AI</span>
+<span class="text-xs text-slate-500">10:02 AM</span>
+</div>
+<div class="bg-[#1a2333] border border-[#232f48] rounded-2xl rounded-tl-none p-5 shadow-sm text-slate-200 leading-relaxed max-w-2xl">
+<p>Ready to dive into <strong>Advanced Neural Networks</strong>. I've switched to "Sparring Mode," which means I'll challenge your understanding rather than just giving answers.</p>
+<p class="mt-3">Where should we start? We can discuss:</p>
+<ul class="list-disc list-inside mt-2 space-y-1 text-slate-300 marker:text-primary">
+<li>Backpropagation mechanics</li>
+<li>Vanishing gradient problem</li>
+<li>Activation functions (ReLU vs Sigmoid)</li>
+</ul>
+</div>
+</div>
+</div>
+<!-- User Message -->
+<div class="flex gap-4 max-w-3xl mx-auto flex-row-reverse">
+<div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-dark shadow-glow flex items-center justify-center shrink-0">
+<span class="text-xs font-bold text-white">ME</span>
+</div>
+<div class="flex flex-col gap-2 items-end">
+<div class="flex items-baseline gap-2">
+<span class="text-xs text-slate-500">10:04 AM</span>
+<span class="text-sm font-bold text-white font-display">You</span>
+</div>
+<div class="bg-primary/20 border border-primary/30 rounded-2xl rounded-tr-none p-5 shadow-lg text-white leading-relaxed max-w-2xl">
+<p>Let's start with Backpropagation. Explain it like I'm 5, but focus on how the weights are updated.</p>
+</div>
+</div>
+</div>
+<!-- AI Response with Flashcard Trigger -->
+<div class="flex gap-4 max-w-3xl mx-auto">
+<div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#232f48] to-[#111722] shadow-clay flex items-center justify-center shrink-0 border border-white/5">
+<span class="material-symbols-outlined text-primary">smart_toy</span>
+</div>
+<div class="flex flex-col gap-2">
+<div class="flex items-baseline gap-2">
+<span class="text-sm font-bold text-white font-display">Synapse AI</span>
+<span class="text-xs text-slate-500">10:04 AM</span>
+</div>
+<div class="bg-[#1a2333] border border-[#232f48] rounded-2xl rounded-tl-none p-5 shadow-sm text-slate-200 leading-relaxed max-w-2xl">
+<p>Imagine you're trying to throw a ball into a basket with your eyes closed. You throw it, open your eyes, and see you missed by 2 meters to the left.</p>
+<p class="mt-3">Your brain (the network) says, "Okay, next time, throw slightly more to the right."</p>
+<p class="mt-3">In neural networks, this "miss distance" is the <strong class="text-primary cursor-pointer hover:underline decoration-dashed decoration-primary underline-offset-4">Error Rate</strong>. Backpropagation is just the messenger running backward through your brain cells (neurons) shouting, "Hey! Change your strength (<strong class="text-primary cursor-pointer hover:underline decoration-dashed decoration-primary underline-offset-4">Weight</strong>) a little bit so we don't miss next time!"</p>
+<!-- Embedded Action for Chat -->
+<div class="mt-4 flex gap-2">
+<button class="flex items-center gap-2 px-3 py-1.5 bg-[#111722] hover:bg-[#1c263a] rounded-lg border border-[#232f48] text-xs font-medium text-slate-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-sm">style</span>
+                                    Added to Flashcards
+                                </button>
+<button class="flex items-center gap-2 px-3 py-1.5 bg-[#111722] hover:bg-[#1c263a] rounded-lg border border-[#232f48] text-xs font-medium text-slate-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-sm">psychology_alt</span>
+                                    Test me on this
+                                </button>
+</div>
+</div>
+</div>
+</div>
+<!-- User Message -->
+<div class="flex gap-4 max-w-3xl mx-auto flex-row-reverse">
+<div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-dark shadow-glow flex items-center justify-center shrink-0">
+<span class="text-xs font-bold text-white">ME</span>
+</div>
+<div class="flex flex-col gap-2 items-end">
+<div class="flex items-baseline gap-2">
+<span class="text-xs text-slate-500">10:05 AM</span>
+<span class="text-sm font-bold text-white font-display">You</span>
+</div>
+<div class="bg-primary/20 border border-primary/30 rounded-2xl rounded-tr-none p-5 shadow-lg text-white leading-relaxed max-w-2xl">
+<p>Does the learning rate affect this shouting process?</p>
+</div>
+</div>
+</div>
+<!-- Loading State (AI Thinking) -->
+<div class="flex gap-4 max-w-3xl mx-auto opacity-70">
+<div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#232f48] to-[#111722] shadow-clay flex items-center justify-center shrink-0 border border-white/5">
+<span class="material-symbols-outlined text-primary animate-pulse">smart_toy</span>
+</div>
+<div class="flex items-center">
+<div class="bg-[#1a2333] border border-[#232f48] rounded-2xl rounded-tl-none px-4 py-3 shadow-sm flex items-center gap-1">
+<div class="w-2 h-2 bg-slate-400 rounded-full typing-dot"></div>
+<div class="w-2 h-2 bg-slate-400 rounded-full typing-dot"></div>
+<div class="w-2 h-2 bg-slate-400 rounded-full typing-dot"></div>
+</div>
+</div>
+</div>
+<!-- Spacer for scrolling -->
+<div class="h-20"></div>
+</div>
+<!-- Bottom Input Area -->
+<div class="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#111722] via-[#111722] to-transparent z-20">
+<div class="max-w-3xl mx-auto">
+<!-- Quick Actions -->
+<div class="flex gap-2 mb-3 overflow-x-auto no-scrollbar">
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a2333] border border-[#232f48] hover:border-primary/50 hover:bg-[#232f48] transition-all text-xs text-slate-300 whitespace-nowrap">
+<span class="material-symbols-outlined text-sm">quiz</span>
+                            Quiz Me
+                        </button>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a2333] border border-[#232f48] hover:border-primary/50 hover:bg-[#232f48] transition-all text-xs text-slate-300 whitespace-nowrap">
+<span class="material-symbols-outlined text-sm">summarize</span>
+                            Summarize Context
+                        </button>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a2333] border border-[#232f48] hover:border-primary/50 hover:bg-[#232f48] transition-all text-xs text-slate-300 whitespace-nowrap">
+<span class="material-symbols-outlined text-sm">lightbulb</span>
+                            Give Hint
+                        </button>
+</div>
+<!-- Input Field -->
+<div class="relative group">
+<div class="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-2xl blur opacity-20 group-hover:opacity-40 transition-opacity"></div>
+<div class="relative bg-[#1a2333] border border-[#232f48] rounded-2xl shadow-2xl flex items-end p-2 gap-2 focus-within:border-primary/50 transition-colors">
+<button class="p-2 text-slate-400 hover:text-white hover:bg-[#232f48] rounded-xl transition-colors">
+<span class="material-symbols-outlined">add_circle</span>
+</button>
+<textarea class="w-full bg-transparent border-0 text-white placeholder-slate-500 focus:ring-0 resize-none py-3 max-h-32 text-base" placeholder="Ask a follow-up or type 'Quiz me'..." rows="1"></textarea>
+<button class="p-2 text-slate-400 hover:text-white hover:bg-[#232f48] rounded-xl transition-colors">
+<span class="material-symbols-outlined">mic</span>
+</button>
+<button class="p-2 bg-primary hover:bg-primary-light text-white rounded-xl shadow-glow juicy-button transition-colors">
+<span class="material-symbols-outlined">arrow_upward</span>
+</button>
+</div>
+</div>
+<div class="text-center mt-2">
+<p class="text-[10px] text-slate-600">Synapse AI can make mistakes. Verify critical information.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Sidebar: Knowledge Rail (Dynamic Learning) -->
+<aside class="w-80 flex-none hidden xl:flex flex-col border-l border-[#232f48] bg-[#111722]/50 backdrop-blur-sm relative">
+<div class="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none"></div>
+<div class="p-5 border-b border-[#232f48]/50 flex items-center justify-between relative z-10">
+<h3 class="text-white font-bold font-display text-lg flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">auto_awesome</span>
+                    Knowledge Rail
+                </h3>
+<span class="bg-[#232f48] text-xs text-slate-300 px-2 py-0.5 rounded border border-[#344260]">Live</span>
+</div>
+<div class="flex-1 overflow-y-auto p-5 space-y-6 relative z-10">
+<!-- Takeaways Section -->
+<div>
+<h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        Key Takeaways
+                        <span class="w-full h-px bg-[#232f48]"></span>
+</h4>
+<ul class="space-y-3">
+<li class="flex gap-3 text-sm text-slate-300 group">
+<span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(19,91,236,0.8)] shrink-0"></span>
+<span class="group-hover:text-white transition-colors">Backpropagation is the method of calculating gradients.</span>
+</li>
+<li class="flex gap-3 text-sm text-slate-300 group">
+<span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(19,91,236,0.8)] shrink-0"></span>
+<span class="group-hover:text-white transition-colors">Error rate determines the magnitude of weight adjustments.</span>
+</li>
+</ul>
+</div>
+<!-- Dynamic Flashcards Section -->
+<div>
+<h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        Generated Flashcards
+                        <span class="w-full h-px bg-[#232f48]"></span>
+</h4>
+<div class="space-y-3">
+<!-- Card 1 -->
+<div class="group relative perspective-1000">
+<div class="clay-card p-4 border border-[#232f48] group-hover:border-primary/50 transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-2">
+<span class="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">Concept</span>
+<span class="material-symbols-outlined text-slate-500 text-sm">flip</span>
+</div>
+<h5 class="text-white font-bold font-display text-lg mb-1">Backpropagation</h5>
+<p class="text-xs text-slate-400 line-clamp-2">The algorithm used to calculate the gradient of the loss function...</p>
+</div>
+</div>
+<!-- Card 2 (Just added animation) -->
+<div class="group relative perspective-1000 animate-[bounce_0.5s_ease-out]">
+<div class="absolute -inset-0.5 bg-gradient-to-r from-primary to-emerald-400 rounded-xl opacity-30 blur group-hover:opacity-60 transition duration-1000"></div>
+<div class="relative clay-card p-4 border border-[#232f48] cursor-pointer bg-[#1a2333]">
+<div class="flex justify-between items-start mb-2">
+<span class="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded">Term</span>
+<span class="material-symbols-outlined text-slate-500 text-sm">flip</span>
+</div>
+<h5 class="text-white font-bold font-display text-lg mb-1">Weight</h5>
+<p class="text-xs text-slate-400 line-clamp-2">A parameter within a neural network that transforms input data...</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Review Button FAB (Anchored to bottom of sidebar) -->
+<div class="p-5 pt-0 relative z-10">
+<button class="w-full py-3 bg-gradient-to-r from-primary to-primary-dark rounded-xl shadow-glow flex items-center justify-center gap-2 text-white font-bold font-display hover:scale-[1.02] active:scale-[0.98] transition-transform">
+<span class="material-symbols-outlined">style</span>
+                    Review 2 Cards Now
+                </button>
+</div>
+</aside>
+</main>
+</body></html>

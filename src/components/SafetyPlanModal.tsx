@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, AlertTriangle, Heart, Phone, Plus, Trash2, Shield, Sparkles } from "lucide-react";
+import { X, AlertTriangle, Heart, Phone, Plus, Trash2, ChevronDown, Mail, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface SafetyPlanModalProps {
@@ -13,25 +13,65 @@ interface SafetyPlanModalProps {
 interface EmergencyContact {
     name: string;
     phone: string;
+    role?: string;
 }
 
 const STORAGE_KEY = "synapse-safety-plan";
 
 const DEFAULT_HOTLINES = [
-    { name: "Into The Light (LISA)", phone: "119", emoji: "🆘" },
-    { name: "Yayasan Pulih", phone: "021-788-42580", emoji: "💚" },
+    { name: "Call Emergency (988)", desc: "Available 24/7 for immediate help", phone: "988", icon: "🆘" },
+    { name: "Text Crisis Line (741741)", desc: 'Text "HOME" to connect', phone: "741741", icon: "💬" },
 ];
 
-export default function SafetyPlanModal({ isOpen, onClose, isDarkMode = true }: SafetyPlanModalProps) {
+const GROUNDING_STRATEGIES = [
+    {
+        id: "54321",
+        title: "5-4-3-2-1 Technique",
+        icon: "🖐️",
+        iconColor: "#f49d25",
+        steps: [
+            "Acknowledge 5 things you see around you.",
+            "Acknowledge 4 things you can touch.",
+            "Acknowledge 3 things you hear.",
+            "Acknowledge 2 things you can smell.",
+            "Acknowledge 1 thing you can taste."
+        ]
+    },
+    {
+        id: "box",
+        title: "Box Breathing",
+        icon: "🌬️",
+        iconColor: "#3b82f6",
+        steps: [
+            "Inhale for 4 seconds.",
+            "Hold for 4 seconds.",
+            "Exhale for 4 seconds.",
+            "Hold for 4 seconds."
+        ]
+    },
+    {
+        id: "sensory",
+        title: "Sensory Shock",
+        icon: "💧",
+        iconColor: "#14b8a6",
+        steps: [
+            "Splash cold water on your face or hold an ice cube in your hand until it melts.",
+            "Focus entirely on the intense sensation of cold to reset your nervous system."
+        ]
+    }
+];
+
+export default function SafetyPlanModal({ isOpen, onClose, isDarkMode = false }: SafetyPlanModalProps) {
     const [warningSigns, setWarningSigns] = useState<string[]>([]);
     const [copingStrategies, setCopingStrategies] = useState<string[]>([]);
     const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
+    const [openStrategy, setOpenStrategy] = useState<string | null>("54321");
 
     const [newWarning, setNewWarning] = useState("");
     const [newCoping, setNewCoping] = useState("");
     const [newContactName, setNewContactName] = useState("");
     const [newContactPhone, setNewContactPhone] = useState("");
-    const [phoneError, setPhoneError] = useState("");
+    const [newContactRole, setNewContactRole] = useState("");
 
     // Load from localStorage
     useEffect(() => {
@@ -75,48 +115,23 @@ export default function SafetyPlanModal({ isOpen, onClose, isDarkMode = true }: 
         }
     };
 
-    // Validate phone number - only allow numbers, +, -, spaces, and parentheses
-    const isValidPhone = (phone: string): boolean => {
-        const phoneRegex = /^[0-9+\-()\s]+$/;
-        return phoneRegex.test(phone) && phone.replace(/[^0-9]/g, '').length >= 3;
-    };
-
-    const handlePhoneChange = (value: string) => {
-        // Allow empty or valid phone characters
-        if (value === '' || /^[0-9+\-()\s]*$/.test(value)) {
-            setNewContactPhone(value);
-            setPhoneError("");
-        } else {
-            setPhoneError("Hanya angka dan karakter +, -, (, ) yang diizinkan");
-        }
-    };
-
     const addContact = () => {
-        if (!newContactName.trim()) {
-            return;
+        if (newContactName.trim() && newContactPhone.trim()) {
+            setEmergencyContacts([...emergencyContacts, {
+                name: newContactName.trim(),
+                phone: newContactPhone.trim(),
+                role: newContactRole.trim() || undefined
+            }]);
+            setNewContactName("");
+            setNewContactPhone("");
+            setNewContactRole("");
         }
-        if (!newContactPhone.trim()) {
-            setPhoneError("Nomor telepon harus diisi");
-            return;
-        }
-        if (!isValidPhone(newContactPhone.trim())) {
-            setPhoneError("Nomor telepon tidak valid (minimal 3 digit)");
-            return;
-        }
-        setEmergencyContacts([...emergencyContacts, { name: newContactName.trim(), phone: newContactPhone.trim() }]);
-        setNewContactName("");
-        setNewContactPhone("");
-        setPhoneError("");
     };
 
     const removeItem = (type: "warning" | "coping" | "contact", index: number) => {
-        if (type === "warning") {
-            setWarningSigns(warningSigns.filter((_, i) => i !== index));
-        } else if (type === "coping") {
-            setCopingStrategies(copingStrategies.filter((_, i) => i !== index));
-        } else {
-            setEmergencyContacts(emergencyContacts.filter((_, i) => i !== index));
-        }
+        if (type === "warning") setWarningSigns(warningSigns.filter((_, i) => i !== index));
+        else if (type === "coping") setCopingStrategies(copingStrategies.filter((_, i) => i !== index));
+        else setEmergencyContacts(emergencyContacts.filter((_, i) => i !== index));
     };
 
     const callNumber = (phone: string) => {
@@ -125,6 +140,33 @@ export default function SafetyPlanModal({ isOpen, onClose, isDarkMode = true }: 
 
     if (!isOpen) return null;
 
+    const bgColor = isDarkMode ? '#221a10' : '#f8f7f5';
+    const textColor = isDarkMode ? '#eaddcf' : '#4a453e';
+    const primaryColor = '#f49d25';
+
+    const neoSurface = {
+        backgroundColor: bgColor,
+        boxShadow: isDarkMode
+            ? '9px 9px 18px #15100a, -9px -9px 18px #2f2416'
+            : '9px 9px 18px #d6d3cd, -9px -9px 18px #ffffff',
+        border: isDarkMode ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(255,255,255,0.4)'
+    };
+
+    const neoBtn = {
+        backgroundColor: bgColor,
+        boxShadow: isDarkMode
+            ? '6px 6px 12px #15100a, -6px -6px 12px #2f2416'
+            : '6px 6px 12px #d6d3cd, -6px -6px 12px #ffffff',
+        border: isDarkMode ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(255,255,255,0.4)'
+    };
+
+    const neoInset = {
+        backgroundColor: bgColor,
+        boxShadow: isDarkMode
+            ? 'inset 6px 6px 12px #15100a, inset -6px -6px 12px #2f2416'
+            : 'inset 6px 6px 12px #d6d3cd, inset -6px -6px 12px #ffffff'
+    };
+
     return (
         <AnimatePresence>
             <motion.div
@@ -132,319 +174,227 @@ export default function SafetyPlanModal({ isOpen, onClose, isDarkMode = true }: 
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-[100] flex flex-col overflow-hidden"
+                style={{ fontFamily: "'Nunito', sans-serif", backgroundColor: bgColor }}
             >
-                {/* Beautiful gradient background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900/50 to-slate-900" />
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-red-900/20 via-transparent to-transparent" />
-
-                {/* Floating orbs for visual interest */}
-                <div className="absolute top-20 left-10 w-32 h-32 bg-red-500/10 rounded-full blur-3xl animate-pulse" />
-                <div className="absolute bottom-40 right-10 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
-                <div className="absolute top-1/2 left-1/2 w-48 h-48 bg-pink-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "2s" }} />
+                {/* Background Gradient Blobs */}
+                <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+                    <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] rounded-full blur-[120px]" style={{ backgroundColor: `${primaryColor}20` }} />
+                    <div className="absolute top-[20%] right-[10%] w-[40%] h-[40%] rounded-full blur-[100px]" style={{ backgroundColor: isDarkMode ? 'rgba(249,115,22,0.1)' : 'rgba(255,200,150,0.2)' }} />
+                </div>
 
                 {/* Header */}
-                <motion.div
-                    initial={{ y: -20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.1 }}
-                    className="relative flex items-center justify-between p-6 border-b border-white/10 backdrop-blur-xl"
-                >
-                    <div className="flex items-center gap-4">
-                        <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ type: "spring", delay: 0.2 }}
-                            className="p-3 bg-gradient-to-br from-red-500 to-pink-600 rounded-2xl shadow-lg shadow-red-500/30"
-                        >
-                            <Shield className="text-white" size={28} />
-                        </motion.div>
-                        <div>
-                            <h1 className="text-2xl font-bold text-white">Safety Plan</h1>
-                            <p className="text-sm text-white/50">Your personal crisis support card 💪</p>
+                <header className="relative z-10 flex items-center justify-between px-8 py-6 w-full max-w-7xl mx-auto">
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center size-10 rounded-xl" style={{ ...neoBtn, color: primaryColor }}>
+                            <span className="text-xl">🛡️</span>
                         </div>
+                        <h2 className="text-xl font-bold tracking-tight" style={{ color: isDarkMode ? 'white' : textColor }}>
+                            Synapse
+                        </h2>
                     </div>
-                    <motion.button
-                        whileHover={{ scale: 1.1, rotate: 90 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={onClose}
-                        className="p-3 text-white/40 hover:text-white hover:bg-white/10 transition-all rounded-2xl"
-                    >
-                        <X size={24} />
-                    </motion.button>
-                </motion.div>
+                    <div className="flex items-center gap-4">
+                        <nav className="hidden md:flex items-center gap-8">
+                            <span className="text-sm font-medium" style={{ color: primaryColor }}>Safety Plan</span>
+                        </nav>
+                        <button onClick={onClose} className="flex items-center justify-center size-10 rounded-full transition-all hover:-translate-y-0.5" style={neoBtn}>
+                            <X size={20} style={{ color: textColor }} />
+                        </button>
+                    </div>
+                </header>
 
-                {/* Content - Scrollable */}
-                <div className="relative flex-1 overflow-y-auto p-6 space-y-6">
-
-                    {/* Warning Signs Section */}
-                    <motion.section
-                        initial={{ x: -20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 0.2 }}
-                        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-yellow-500/10 to-orange-500/5 border border-yellow-500/20 p-5 backdrop-blur-sm"
-                    >
-                        {/* Decorative gradient */}
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-yellow-500/20 to-transparent rounded-bl-full" />
-
-                        <div className="relative">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-2.5 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl shadow-lg shadow-yellow-500/20">
-                                    <AlertTriangle className="text-white" size={20} />
-                                </div>
-                                <div>
-                                    <h2 className="font-bold text-white text-lg">Tanda Peringatan</h2>
-                                    <p className="text-xs text-yellow-200/60">Kenali saat kamu mulai tidak baik-baik saja</p>
-                                </div>
-                            </div>
-
-                            {warningSigns.length > 0 && (
-                                <div className="space-y-2 mb-4">
-                                    {warningSigns.map((sign, idx) => (
-                                        <motion.div
-                                            key={idx}
-                                            initial={{ x: -10, opacity: 0 }}
-                                            animate={{ x: 0, opacity: 1 }}
-                                            exit={{ x: 10, opacity: 0 }}
-                                            className="group flex items-center justify-between px-4 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
-                                        >
-                                            <span className="text-sm text-white flex items-center gap-2">
-                                                <span className="text-yellow-400">⚠️</span> {sign}
-                                            </span>
-                                            <button
-                                                onClick={() => removeItem("warning", idx)}
-                                                className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 p-1 transition-opacity"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </motion.div>
-                                    ))}
-                                </div>
-                            )}
-
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={newWarning}
-                                    onChange={(e) => setNewWarning(e.target.value)}
-                                    onKeyDown={(e) => e.key === "Enter" && addWarningSign()}
-                                    placeholder="Contoh: Mulai isolasi diri..."
-                                    className="flex-1 px-4 py-3 rounded-2xl text-sm bg-white/10 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 focus:border-yellow-400/50 transition-all"
-                                />
-                                <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={addWarningSign}
-                                    className="p-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-2xl shadow-lg shadow-yellow-500/20 hover:shadow-yellow-500/40 transition-all"
-                                >
-                                    <Plus size={18} />
-                                </motion.button>
-                            </div>
-                        </div>
-                    </motion.section>
-
-                    {/* Coping Strategies Section */}
-                    <motion.section
-                        initial={{ x: -20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 0.3 }}
-                        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-500/10 to-purple-500/5 border border-pink-500/20 p-5 backdrop-blur-sm"
-                    >
-                        {/* Decorative gradient */}
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-pink-500/20 to-transparent rounded-bl-full" />
-
-                        <div className="relative">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-2.5 bg-gradient-to-br from-pink-400 to-purple-500 rounded-xl shadow-lg shadow-pink-500/20">
-                                    <Heart className="text-white" size={20} />
-                                </div>
-                                <div>
-                                    <h2 className="font-bold text-white text-lg">Strategi Koping</h2>
-                                    <p className="text-xs text-pink-200/60">Hal yang bisa menenangkanmu</p>
-                                </div>
-                            </div>
-
-                            {copingStrategies.length > 0 && (
-                                <div className="space-y-2 mb-4">
-                                    {copingStrategies.map((strategy, idx) => (
-                                        <motion.div
-                                            key={idx}
-                                            initial={{ x: -10, opacity: 0 }}
-                                            animate={{ x: 0, opacity: 1 }}
-                                            exit={{ x: 10, opacity: 0 }}
-                                            className="group flex items-center justify-between px-4 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
-                                        >
-                                            <span className="text-sm text-white flex items-center gap-2">
-                                                <span className="text-pink-400">💖</span> {strategy}
-                                            </span>
-                                            <button
-                                                onClick={() => removeItem("coping", idx)}
-                                                className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 p-1 transition-opacity"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </motion.div>
-                                    ))}
-                                </div>
-                            )}
-
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={newCoping}
-                                    onChange={(e) => setNewCoping(e.target.value)}
-                                    onKeyDown={(e) => e.key === "Enter" && addCopingStrategy()}
-                                    placeholder="Contoh: Dengar playlist favorit..."
-                                    className="flex-1 px-4 py-3 rounded-2xl text-sm bg-white/10 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-pink-400/50 focus:border-pink-400/50 transition-all"
-                                />
-                                <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={addCopingStrategy}
-                                    className="p-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-2xl shadow-lg shadow-pink-500/20 hover:shadow-pink-500/40 transition-all"
-                                >
-                                    <Plus size={18} />
-                                </motion.button>
-                            </div>
-                        </div>
-                    </motion.section>
-
-                    {/* Emergency Contacts Section */}
-                    <motion.section
-                        initial={{ x: -20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 0.4 }}
-                        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-red-500/20 to-rose-500/10 border border-red-500/30 p-5 backdrop-blur-sm"
-                    >
-                        {/* Decorative gradient */}
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-red-500/30 to-transparent rounded-bl-full" />
-                        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-red-500/10 rounded-full blur-2xl" />
-
-                        <div className="relative">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-2.5 bg-gradient-to-br from-red-500 to-rose-600 rounded-xl shadow-lg shadow-red-500/30">
-                                    <Phone className="text-white" size={20} />
-                                </div>
-                                <div>
-                                    <h2 className="font-bold text-white text-lg">Kontak Darurat</h2>
-                                    <p className="text-xs text-red-200/60">Orang yang bisa kamu hubungi</p>
-                                </div>
-                            </div>
-
-                            {/* Hotlines */}
-                            <div className="space-y-3 mb-5">
-                                <p className="text-xs font-semibold text-white/40 uppercase tracking-wider flex items-center gap-2">
-                                    <Sparkles size={12} /> Hotline Krisis 24 Jam
-                                </p>
-                                {DEFAULT_HOTLINES.map((hotline, idx) => (
-                                    <motion.button
-                                        key={idx}
-                                        whileHover={{ scale: 1.02, y: -2 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        onClick={() => callNumber(hotline.phone)}
-                                        className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold shadow-xl shadow-red-500/30 hover:shadow-red-500/50 transition-all"
-                                    >
-                                        <span className="flex items-center gap-3">
-                                            <span className="text-xl">{hotline.emoji}</span>
-                                            {hotline.name}
-                                        </span>
-                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-white/20 rounded-full">
-                                            <span className="text-sm font-bold">{hotline.phone}</span>
-                                            <Phone size={14} />
-                                        </div>
-                                    </motion.button>
-                                ))}
-                            </div>
-
-                            {/* Personal Contacts */}
-                            {emergencyContacts.length > 0 && (
-                                <div className="space-y-2 mb-5">
-                                    <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Kontak Pribadi</p>
-                                    {emergencyContacts.map((contact, idx) => (
-                                        <motion.div
-                                            key={idx}
-                                            className="flex items-center gap-2"
-                                            initial={{ x: -10, opacity: 0 }}
-                                            animate={{ x: 0, opacity: 1 }}
-                                        >
-                                            <motion.button
-                                                whileHover={{ scale: 1.02 }}
-                                                whileTap={{ scale: 0.98 }}
-                                                onClick={() => callNumber(contact.phone)}
-                                                className="flex-1 flex items-center justify-between px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 transition-all"
-                                            >
-                                                <span className="font-medium text-white flex items-center gap-2">
-                                                    <span className="text-green-400">👤</span> {contact.name}
-                                                </span>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-sm text-white/60">{contact.phone}</span>
-                                                    <div className="p-1.5 bg-green-500/20 rounded-lg">
-                                                        <Phone size={12} className="text-green-400" />
-                                                    </div>
-                                                </div>
-                                            </motion.button>
-                                            <button
-                                                onClick={() => removeItem("contact", idx)}
-                                                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-all"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </motion.div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Add Contact */}
-                            <div className="space-y-3 pt-3 border-t border-white/10">
-                                <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Tambah Kontak Baru</p>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={newContactName}
-                                        onChange={(e) => setNewContactName(e.target.value)}
-                                        placeholder="Nama..."
-                                        className="flex-1 px-4 py-3 rounded-2xl text-sm bg-white/10 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-green-400/50 transition-all"
-                                    />
-                                    <div className="flex-1 flex flex-col">
-                                        <input
-                                            type="tel"
-                                            value={newContactPhone}
-                                            onChange={(e) => handlePhoneChange(e.target.value)}
-                                            onKeyDown={(e) => e.key === "Enter" && addContact()}
-                                            placeholder="Nomor HP..."
-                                            className={`w-full px-4 py-3 rounded-2xl text-sm bg-white/10 border text-white placeholder-white/30 focus:outline-none focus:ring-2 transition-all ${phoneError ? "border-red-500/50 focus:ring-red-400/50" : "border-white/10 focus:ring-green-400/50"
-                                                }`}
-                                        />
-                                        {phoneError && (
-                                            <span className="mt-1 text-xs text-red-400">{phoneError}</span>
-                                        )}
-                                    </div>
-                                    <motion.button
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={addContact}
-                                        className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl shadow-lg shadow-green-500/20 hover:shadow-green-500/40 transition-all"
-                                    >
-                                        <Plus size={18} />
-                                    </motion.button>
-                                </div>
-                            </div>
-                        </div>
-                    </motion.section>
-
-                    {/* Motivational Footer */}
+                {/* Main Content - Scrollable */}
+                <main className="relative z-10 flex-1 overflow-y-auto w-full max-w-5xl mx-auto px-6 py-8 flex flex-col gap-12">
+                    {/* Page Heading */}
                     <motion.div
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.5 }}
-                        className="text-center py-6"
+                        className="flex flex-col items-center text-center gap-4"
                     >
-                        <div className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-white/5 border border-white/10">
-                            <span className="text-2xl">💜</span>
-                            <p className="text-white/60 text-sm font-medium italic">
-                                Kamu tidak sendirian. Bantuan selalu tersedia.
-                            </p>
-                        </div>
+                        <h1 className="text-4xl md:text-5xl font-black tracking-tight" style={{ color: isDarkMode ? 'white' : textColor }}>
+                            Safety Plan
+                        </h1>
+                        <p className="text-lg md:text-xl font-light max-w-2xl" style={{ color: `${textColor}99` }}>
+                            You are not alone. Here are your anchors to help you navigate through the storm.
+                        </p>
                     </motion.div>
+
+                    {/* Emergency Actions */}
+                    <section className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl mx-auto">
+                        {DEFAULT_HOTLINES.map((hotline, idx) => (
+                            <motion.button
+                                key={idx}
+                                initial={{ x: -20, opacity: 0 }}
+                                animate={{ x: 0, opacity: 1 }}
+                                transition={{ delay: idx * 0.1 }}
+                                onClick={() => callNumber(hotline.phone)}
+                                className="group relative flex items-center justify-between p-6 rounded-2xl cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99]"
+                                style={neoBtn}
+                            >
+                                <div className="flex flex-col items-start gap-1">
+                                    <span className="text-lg font-bold" style={{ color: idx === 0 ? primaryColor : textColor }}>
+                                        {hotline.name}
+                                    </span>
+                                    <span className="text-sm" style={{ color: `${textColor}60` }}>{hotline.desc}</span>
+                                </div>
+                                <div className="size-12 rounded-full flex items-center justify-center" style={{ ...neoInset, color: idx === 0 ? primaryColor : textColor }}>
+                                    <span className="text-2xl">{hotline.icon}</span>
+                                </div>
+                            </motion.button>
+                        ))}
+                    </section>
+
+                    {/* Your Circle */}
+                    <section className="w-full max-w-4xl mx-auto flex flex-col gap-6">
+                        <h2 className="text-2xl font-bold pl-2" style={{ color: isDarkMode ? 'white' : textColor, borderLeft: `4px solid ${primaryColor}80` }}>
+                            Your Circle
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {emergencyContacts.map((contact, idx) => (
+                                <motion.div
+                                    key={idx}
+                                    initial={{ y: 20, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    transition={{ delay: idx * 0.1 }}
+                                    className="p-6 rounded-2xl flex flex-col items-center text-center gap-4 group"
+                                    style={neoSurface}
+                                >
+                                    <div className="relative size-20 rounded-full p-1" style={neoSurface}>
+                                        <div className="w-full h-full rounded-full bg-gradient-to-br from-orange-200 to-orange-100 flex items-center justify-center">
+                                            <span className="text-3xl">👤</span>
+                                        </div>
+                                        <div className="absolute bottom-0 right-0 size-5 rounded-full bg-green-500" style={{ border: `2px solid ${bgColor}` }} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold" style={{ color: textColor }}>{contact.name}</h3>
+                                        {contact.role && <p className="text-sm" style={{ color: primaryColor }}>{contact.role}</p>}
+                                    </div>
+                                    <div className="flex gap-4 mt-2">
+                                        <button onClick={() => callNumber(contact.phone)} className="size-10 rounded-full flex items-center justify-center transition-all hover:-translate-y-0.5" style={neoBtn}>
+                                            <Phone size={18} style={{ color: textColor }} />
+                                        </button>
+                                        <button className="size-10 rounded-full flex items-center justify-center transition-all hover:-translate-y-0.5" style={neoBtn}>
+                                            <MessageSquare size={18} style={{ color: textColor }} />
+                                        </button>
+                                        <button onClick={() => removeItem("contact", idx)} className="size-10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all" style={{ ...neoBtn, color: '#ef4444' }}>
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            ))}
+
+                            {/* Add Contact Card */}
+                            <div className="p-6 rounded-2xl flex flex-col gap-4" style={neoSurface}>
+                                <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: `${textColor}60` }}>Add Contact</h3>
+                                <input
+                                    type="text"
+                                    value={newContactName}
+                                    onChange={(e) => setNewContactName(e.target.value)}
+                                    placeholder="Name..."
+                                    className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none"
+                                    style={{ ...neoInset, color: textColor }}
+                                />
+                                <input
+                                    type="text"
+                                    value={newContactRole}
+                                    onChange={(e) => setNewContactRole(e.target.value)}
+                                    placeholder="Role (optional)..."
+                                    className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none"
+                                    style={{ ...neoInset, color: textColor }}
+                                />
+                                <input
+                                    type="tel"
+                                    value={newContactPhone}
+                                    onChange={(e) => setNewContactPhone(e.target.value)}
+                                    onKeyDown={(e) => e.key === "Enter" && addContact()}
+                                    placeholder="Phone..."
+                                    className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none"
+                                    style={{ ...neoInset, color: textColor }}
+                                />
+                                <button
+                                    onClick={addContact}
+                                    className="w-full py-3 rounded-xl font-bold text-sm transition-all hover:-translate-y-0.5"
+                                    style={{
+                                        background: `linear-gradient(to right, ${primaryColor}, #ff9e4d)`,
+                                        color: 'white',
+                                        boxShadow: `6px 6px 12px rgba(244,157,37,0.3), -6px -6px 12px #ffffff`
+                                    }}
+                                >
+                                    <Plus size={16} className="inline mr-2" />
+                                    Add Contact
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Grounding Strategies */}
+                    <section className="w-full max-w-4xl mx-auto flex flex-col gap-6 mb-12">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-2xl font-bold pl-2" style={{ color: isDarkMode ? 'white' : textColor, borderLeft: `4px solid ${primaryColor}80` }}>
+                                Grounding Now
+                            </h2>
+                            <span className="text-sm" style={{ color: `${textColor}60` }}>Pick one to focus on</span>
+                        </div>
+                        <div className="flex flex-col gap-4">
+                            {GROUNDING_STRATEGIES.map((strategy) => (
+                                <div key={strategy.id} className="group">
+                                    <button
+                                        onClick={() => setOpenStrategy(openStrategy === strategy.id ? null : strategy.id)}
+                                        className="w-full rounded-xl p-4 flex items-center justify-between cursor-pointer transition-all"
+                                        style={openStrategy === strategy.id ? { ...neoInset, color: primaryColor } : neoBtn}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="size-10 rounded-full flex items-center justify-center" style={{ ...neoSurface, color: strategy.iconColor }}>
+                                                <span className="text-xl">{strategy.icon}</span>
+                                            </div>
+                                            <span className="font-bold text-lg" style={{ color: openStrategy === strategy.id ? primaryColor : textColor }}>
+                                                {strategy.title}
+                                            </span>
+                                        </div>
+                                        <ChevronDown
+                                            size={20}
+                                            className={`transition-transform ${openStrategy === strategy.id ? 'rotate-180' : ''}`}
+                                            style={{ color: textColor }}
+                                        />
+                                    </button>
+                                    <AnimatePresence>
+                                        {openStrategy === strategy.id && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                className="overflow-hidden"
+                                            >
+                                                <div className="mt-4 p-6 rounded-xl text-base leading-relaxed space-y-2" style={{ ...neoInset, color: `${textColor}dd` }}>
+                                                    {strategy.steps.map((step, idx) => (
+                                                        <p key={idx}><strong>{idx + 1}.</strong> {step}</p>
+                                                    ))}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                </main>
+
+                {/* Safety Confirmation Footer */}
+                <div
+                    className="sticky bottom-0 w-full py-6 flex justify-center pb-8 px-6"
+                    style={{
+                        background: isDarkMode
+                            ? 'linear-gradient(to top, #221a10, #221a10, transparent)'
+                            : 'linear-gradient(to top, #f8f7f5, #f8f7f5, transparent)'
+                    }}
+                >
+                    <button
+                        onClick={onClose}
+                        className="group w-full max-w-md h-16 rounded-full flex items-center justify-center gap-3 font-bold text-lg tracking-wide transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        style={{ ...neoBtn, color: primaryColor }}
+                    >
+                        <span className="text-xl group-hover:scale-110 transition-transform">✅</span>
+                        <span>I'm Safe Now</span>
+                    </button>
                 </div>
             </motion.div>
         </AnimatePresence>

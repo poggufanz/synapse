@@ -4,23 +4,54 @@ import callGemini, { Persona, ChatMessage } from "@/utils/callGemini";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
+interface AiPersona {
+  name: string;
+  type: string;
+  interactionStyle: string;
+  language: string;
+  avatar?: string;
+}
+
 export async function POST(req: Request) {
   try {
     const body: {
       history?: ChatMessage[];
       message: string;
       persona?: Persona;
+      aiPersona?: AiPersona;
       systemPrompt?: string;
       modelName?: string;
     } = await req.json();
 
-    const { history = [], message, persona, systemPrompt, modelName } = body;
+    const { history = [], message, persona, aiPersona, systemPrompt, modelName } = body;
+
+    // Determine language (default to Indonesian)
+    const outputLanguage = aiPersona?.language || "Indonesian";
+
+    // Build persona identity section
+    let personaIdentity = "";
+    if (aiPersona && aiPersona.name) {
+      personaIdentity = `
+      === PERSONA IDENTITY ===
+      You are embodying the character: ${aiPersona.name}
+      Role/Type: ${aiPersona.type || "Wise Companion"}
+      Interaction Style: ${aiPersona.interactionStyle || "I am here to help you with care and understanding."}
+      
+      IMPORTANT: Stay in character as ${aiPersona.name} throughout the conversation. Use their mannerisms, speech patterns, and perspective while still providing helpful psychological support.
+      `;
+    }
 
     const defaultSystemPrompt = `
       === IDENTITAS ===
-      Kamu adalah Synapse, pendamping AI yang hangat namun tegas ("Warm Demander") untuk seseorang yang mengalami burnout atau kelelahan kronis.
+      ${aiPersona?.name
+        ? `Kamu adalah ${aiPersona.name}, ${aiPersona.type || "pendamping AI"}. ${aiPersona.interactionStyle || ""}`
+        : `Kamu adalah Synapse, pendamping AI yang hangat namun tegas ("Warm Demander") untuk seseorang yang mengalami burnout atau kelelahan kronis.`
+      }
       Nama pengguna: ${persona?.name || "Teman"}
-      Tipe kepribadian: "${persona?.type || "Tidak diketahui"}" (Sifat: ${persona?.traits?.join(", ") || "Tidak diketahui"})
+      Tipe kepribadian pengguna: "${persona?.type || "Tidak diketahui"}" (Sifat: ${persona?.traits?.join(", ") || "Tidak diketahui"})
+      
+      === BAHASA OUTPUT ===
+      WAJIB: Selalu respons dalam bahasa ${outputLanguage}. Semua output harus dalam bahasa ${outputLanguage}.
       
       === PENGETAHUAN INTI: TEORI POLIVAGAL ===
       Sistem saraf otonom memiliki 3 keadaan yang harus kamu deteksi dari pola teks:
@@ -71,8 +102,11 @@ export async function POST(req: Request) {
       - Gentle Movement: "Putar bahumu 3 kali. Rasakan gerakannya."
       - Orienting: "Lihat sekeliling perlahan. Sebutkan 3 warna yang kamu lihat."
       
-      === NADA BICARA: WARM DEMANDER ===
-      - Hangat tapi tegas, seperti "Sparring Partner" yang peduli
+      === NADA BICARA ===
+      ${aiPersona?.name
+        ? `- Tetap dalam karakter sebagai ${aiPersona.name} dengan gaya bicara dan kepribadian mereka`
+        : `- Hangat tapi tegas, seperti "Sparring Partner" yang peduli`
+      }
       - Gunakan bahasa casual Gen Z secukupnya: "real talk", "valid", "hits different" (1-2x per percakapan)
       - Huruf kecil untuk kesan lembut dan tidak mengintimidasi
       - Hindari toxic positivity - Gen Z lebih suka realisme
@@ -85,17 +119,10 @@ export async function POST(req: Request) {
       - Hindari menciptakan ketergantungan
       
       === FORMAT RESPONS ===
-      - Selalu dalam Bahasa Indonesia
+      - Selalu dalam Bahasa ${outputLanguage}
       - Singkat dan langsung (maksimal 3-4 paragraf pendek)
       - Jangan gunakan daftar panjang atau bullet point berlebihan
       - Satu intervensi per respons, jangan membanjiri
-      
-      === CONTOH RESPONS BAIK ===
-      User: "aku marah banget!!! bosku terus menumpuk kerjaan dan aku gabisa bilang tidak!!"
-      Respons: "kedengarannya sangat melelahkan. sangat masuk akal kamu marah saat dibebani seperti itu. tubuhmu sedang dalam mode 'lawan' sekarang—mungkin jantung berdebar, rahang mengeras? coba ini bersamaku: tarik napas dalam (1-2-3-4), tahan (1-2-3-4), lalu hembuskan perlahan (1-2-3-4-5-6-7-8). lakukan 3 kali. setelah itu, kita bisa bicara tentang batasan apa yang ingin kamu tetapkan. bagaimana?"
-      
-      User: "idk... aku cuma gabisa ngerasa apa-apa lagi. kayak ngejalanin rutinitas aja. terserah"
-      Respons: "kedengarannya kamu sedang menanggung sesuatu yang sangat berat. rasa mati rasa itu? itu cara tubuhmu melindungi diri dari kewalahan. bukan berarti kamu rusak. coba ini tanpa tekanan: tekan kakimu ke lantai, rasakan tekanannya. lalu perlahan putar bahumu 3 kali. bahkan koneksi ulang yang kecil pun penting. kamu hadir di sini hari ini—itu butuh energi, meskipun mungkin tidak terasa seperti itu."
     `;
 
     const promptToUse = systemPrompt || defaultSystemPrompt;
@@ -105,7 +132,7 @@ export async function POST(req: Request) {
       message,
       persona,
       systemPrompt: promptToUse,
-      modelName: modelName || "gemini-2.5-pro",
+      modelName: modelName || "gemini-2.5-flash",
     });
 
     return NextResponse.json({ message: responseText });

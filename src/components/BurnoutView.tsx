@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useEnergyStore } from "@/store/useEnergyStore";
-import { ArrowLeft, Moon, Sun, Send, Music, Wind, Shield, BookHeart, Sparkles, User, Droplets } from "lucide-react";
+import { ArrowLeft, Moon, Sun, Send, Music, Wind, Shield, BookHeart, Sparkles, User, Droplets, Settings } from "lucide-react";
 import BreathingModal from "./BreathingModal";
 import SafetyPlanModal from "./SafetyPlanModal";
 import GrowthGarden, { addWellnessPoints } from "./GrowthGarden";
 import GrowthGardenModal from "./GrowthGardenModal";
 import QuickJournal from "./QuickJournal";
+import CreatePersonaPage from "./CreatePersonaPage";
 
 // Chat message type
 interface ChatMessage {
@@ -38,6 +39,10 @@ const SOUND_KEY = "synapse-burnout-sound";
 export default function BurnoutView() {
     const setMode = useEnergyStore((state) => state.setMode);
     const persona = useEnergyStore((state) => state.persona);
+    const aiPersona = useEnergyStore((state) => state.aiPersona);
+
+    // Show Create Persona page
+    const [showCreatePersona, setShowCreatePersona] = useState(false);
 
     // Theme state (default: light for Optimistic Sunrise)
     const [isDarkMode, setIsDarkMode] = useState(false);
@@ -215,6 +220,7 @@ export default function BurnoutView() {
                     history: chatMessages,
                     message: userMsg.content,
                     persona,
+                    aiPersona,
                 }),
             });
 
@@ -232,9 +238,13 @@ export default function BurnoutView() {
 
     const userName = persona?.name || "friend";
 
+    // Show Create Persona page as full-screen overlay
+    if (showCreatePersona) {
+        return <CreatePersonaPage onClose={() => setShowCreatePersona(false)} isDarkMode={isDarkMode} />;
+    }
+
     return (
         <>
-            {/* Global Styles - Following template exactly */}
             <style jsx global>{`
                 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
                 
@@ -602,7 +612,6 @@ export default function BurnoutView() {
                                         <Wind size={20} style={{ color: isDarkMode ? '#86efac' : '#628F7A' }} />
                                         <span className={`text-[10px] font-bold uppercase tracking-wide ${isDarkMode ? 'text-green-200' : 'text-green-800'}`}>Breathe</span>
                                     </button>
-
                                     {/* Safety Plan Button */}
                                     <button
                                         onClick={() => setIsSafetyPlanOpen(true)}
@@ -614,6 +623,65 @@ export default function BurnoutView() {
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Current AI Persona Card - Separate Card Below Growth Garden */}
+                            <button
+                                onClick={() => setShowCreatePersona(true)}
+                                className="clay-card-base shadow-clay-card relative overflow-hidden p-4 mt-4 w-full text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                                style={{
+                                    backgroundColor: isDarkMode ? '#2a2520' : '#FFF8E8',
+                                    backgroundImage: isDarkMode
+                                        ? 'none'
+                                        : 'radial-gradient(at 20% 80%, hsla(40,100%,90%,0.6) 0, transparent 50%), radial-gradient(at 80% 20%, hsla(30,100%,90%,0.4) 0, transparent 50%)'
+                                }}
+                            >
+                                {/* Decorative gradient */}
+                                <div className={`absolute -right-10 -top-10 w-32 h-32 rounded-full blur-3xl pointer-events-none ${isDarkMode ? 'bg-amber-500/10' : 'bg-[#FFE0B3]/50'}`} />
+
+                                <div className="relative z-10 flex items-center gap-4">
+                                    {/* Avatar with generated image */}
+                                    <div
+                                        className="size-14 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
+                                        style={{
+                                            backgroundColor: isDarkMode ? '#3a3530' : '#FFEDCC',
+                                            border: `3px solid ${isDarkMode ? 'rgba(252,211,77,0.3)' : 'rgba(255,171,128,0.5)'}`,
+                                            boxShadow: isDarkMode
+                                                ? '4px 4px 8px rgba(0,0,0,0.3), -4px -4px 8px rgba(255,255,255,0.05)'
+                                                : '4px 4px 8px rgba(0,0,0,0.1), -4px -4px 8px rgba(255,255,255,0.8)'
+                                        }}
+                                    >
+                                        {aiPersona ? (
+                                            <img
+                                                src={aiPersona.avatar || `https://api.dicebear.com/7.x/avataaars-neutral/svg?seed=${encodeURIComponent(aiPersona.name)}&backgroundColor=FFEDCC`}
+                                                alt={aiPersona.name}
+                                                className="size-full object-cover"
+                                            />
+                                        ) : (
+                                            <Settings size={24} style={{ color: isDarkMode ? '#8a857e' : '#8a857e' }} />
+                                        )}
+                                    </div>
+
+                                    {/* Text Content */}
+                                    <div className="flex-1 min-w-0">
+                                        <p className={`text-[10px] font-extrabold uppercase tracking-widest ${isDarkMode ? 'text-amber-400/70' : 'text-amber-600'}`}>
+                                            {aiPersona ? 'Your Friend' : 'AI Friend'}
+                                        </p>
+                                        <p className={`text-base font-bold truncate ${isDarkMode ? 'text-white' : 'text-stone-700'}`}>
+                                            {aiPersona ? aiPersona.name : 'Customize your friend →'}
+                                        </p>
+                                        {aiPersona && (
+                                            <p className={`text-xs truncate ${isDarkMode ? 'text-white/60' : 'text-stone-500'}`}>
+                                                {aiPersona.type} • {aiPersona.language}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* Sparkle indicator */}
+                                    {aiPersona && (
+                                        <Sparkles size={20} style={{ color: isDarkMode ? '#fcd34d' : '#FFAB80' }} className="flex-shrink-0" />
+                                    )}
+                                </div>
+                            </button>
                         </div>
                     </div>
                 </main>

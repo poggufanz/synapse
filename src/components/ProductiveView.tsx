@@ -118,6 +118,7 @@ export default function ProductiveView() {
     // UI state
     const [inputValue, setInputValue] = useState("");
     const [selectedDuration, setSelectedDuration] = useState(25); // Default 25 minutes
+    const [selectedEnergy, setSelectedEnergy] = useState<"Deep Work" | "Shallow Work">("Shallow Work"); // Default Shallow Work
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [showCompleted, setShowCompleted] = useState(false);
     const [showTiredModal, setShowTiredModal] = useState(false);
@@ -443,7 +444,7 @@ export default function ProductiveView() {
             id: Date.now().toString(),
             action: parsed.title,
             summary: summary,
-            energy: parsed.tag === "#Work" ? "Deep Work" : "Shallow Work",
+            energy: selectedEnergy, // Use selected energy instead of auto-detect
             source: "Manual",
             duration: parsed.duration || selectedDuration,
             isCompleted: false,
@@ -1036,6 +1037,31 @@ export default function ProductiveView() {
                                     </div>
                                 </div>
 
+                                {/* Energy Type Pills */}
+                                <div className="flex items-center gap-3 mb-4">
+                                    <span className="text-sm font-bold text-slate-600">Energy:</span>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setSelectedEnergy("Shallow Work")}
+                                            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${selectedEnergy === "Shallow Work"
+                                                ? "bg-blue-500 text-white shadow-md scale-105"
+                                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                                }`}
+                                        >
+                                            ✨ Shallow Work
+                                        </button>
+                                        <button
+                                            onClick={() => setSelectedEnergy("Deep Work")}
+                                            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${selectedEnergy === "Deep Work"
+                                                ? "bg-purple-500 text-white shadow-md scale-105"
+                                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                                }`}
+                                        >
+                                            🧠 Deep Work
+                                        </button>
+                                    </div>
+                                </div>
+
                                 {/* File Attachments Preview */}
                                 {breakdownAttachments.length > 0 && (
                                     <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
@@ -1174,9 +1200,14 @@ export default function ProductiveView() {
                                             Top 3
                                         </span>
                                     </h3>
-                                    <p className="text-sm text-slate-400 font-medium">
-                                        ▶ Click to start
-                                    </p>
+                                    {tasks.length > 0 && (
+                                        <button
+                                            onClick={() => handlePlayTask(tasks[0])}
+                                            className="text-sm text-blue-500 hover:text-blue-700 font-bold flex items-center gap-1 transition-all hover:scale-105"
+                                        >
+                                            ▶ Click to start
+                                        </button>
+                                    )}
                                 </div>
 
                                 {/* Top 3 Tasks - Highlighted */}
@@ -1464,7 +1495,7 @@ function TaskRow({
 
                     {/* Task Details Content - animates from top (origin at divider) */}
                     <div
-                        className="px-4 py-4 pl-16 bg-gradient-to-b from-slate-50/50 to-white"
+                        className="px-4 py-4 pl-16 bg-gradient-to-b from-slate-50/50 to-white max-h-48 overflow-y-auto"
                         style={{
                             animation: 'expandFromTop 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards',
                             transformOrigin: 'top center',

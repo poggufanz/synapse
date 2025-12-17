@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Leaf, Sun, Droplets, Moon, Sparkles, Calendar, Heart } from "lucide-react";
+import { Leaf, Sun, Droplets, Moon, Sparkles, Heart, ChevronDown } from "lucide-react";
 
 interface GrowthData {
-    totalWellnessPoints: number; // 0-100 for each growth stage
-    currentStage: number; // 0-5 stages
+    totalWellnessPoints: number;
+    currentStage: number;
     restDaysUsed: number;
     restDaysAllowed: number;
     lastActivityDate: string | null;
@@ -21,17 +21,23 @@ interface ActivityLog {
 
 const STORAGE_KEY = "synapse-growth-garden";
 const GROWTH_STAGES = [
-    { name: "Biji", description: "Baru mulai", minPoints: 0, emoji: "🌱" },
-    { name: "Tunas", description: "Mulai tumbuh", minPoints: 20, emoji: "🌿" },
-    { name: "Batang", description: "Semakin kuat", minPoints: 40, emoji: "🪴" },
-    { name: "Daun", description: "Berkembang", minPoints: 60, emoji: "🌳" },
-    { name: "Bunga", description: "Mekar indah", minPoints: 80, emoji: "🌸" },
-    { name: "Pohon", description: "Kamu hebat!", minPoints: 100, emoji: "🌺" },
+    { name: "Seed", description: "Just starting", minPoints: 0, emoji: "🌱" },
+    { name: "Sprout", description: "Growing strong", minPoints: 20, emoji: "🌿" },
+    { name: "Sapling", description: "Getting stronger", minPoints: 40, emoji: "🪴" },
+    { name: "Tree", description: "Flourishing", minPoints: 60, emoji: "🌳" },
+    { name: "Bloom", description: "Beautifully blooming", minPoints: 80, emoji: "🌸" },
+    { name: "Garden", description: "You're amazing!", minPoints: 100, emoji: "🌺" },
 ];
 
-const REST_DAYS_PER_WEEK = 2; // 2 rest days allowed per week without penalty
+const REST_DAYS_PER_WEEK = 2;
 
-export default function GrowthGarden() {
+interface GrowthGardenProps {
+    isDarkMode?: boolean;
+    compact?: boolean;
+    previewOnly?: boolean;
+}
+
+export default function GrowthGarden({ isDarkMode = false, compact = false, previewOnly = false }: GrowthGardenProps) {
     const [data, setData] = useState<GrowthData>({
         totalWellnessPoints: 0,
         currentStage: 0,
@@ -48,7 +54,6 @@ export default function GrowthGarden() {
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
                 const parsed = JSON.parse(saved);
-                // Reset rest days on new week
                 const lastWeek = getWeekNumber(new Date(parsed.lastActivityDate || Date.now()));
                 const currentWeek = getWeekNumber(new Date());
                 if (lastWeek !== currentWeek) {
@@ -104,81 +109,146 @@ export default function GrowthGarden() {
         ? ((data.totalWellnessPoints - currentStage.minPoints) / (nextStage.minPoints - currentStage.minPoints)) * 100
         : 100;
 
+    // Neomorphic styles
+    const bgColor = isDarkMode ? '#1a2e1a' : '#f8f7f5';
+    const textColor = isDarkMode ? '#e0dcd9' : '#4a453e';
+    const primaryColor = '#f49d25';
+    const greenColor = '#22c55e';
+
+    const neoSurface = {
+        backgroundColor: bgColor,
+        boxShadow: isDarkMode
+            ? '10px 10px 20px #0f1a0f, -10px -10px 20px #253025'
+            : '10px 10px 20px #d6d3cd, -10px -10px 20px #ffffff',
+        border: isDarkMode ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(255,255,255,0.4)'
+    };
+
+    const neoBtn = {
+        backgroundColor: bgColor,
+        boxShadow: isDarkMode
+            ? '6px 6px 12px #0f1a0f, -6px -6px 12px #253025'
+            : '6px 6px 12px #d6d3cd, -6px -6px 12px #ffffff',
+        border: isDarkMode ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(255,255,255,0.4)'
+    };
+
+    const neoInset = {
+        backgroundColor: bgColor,
+        boxShadow: isDarkMode
+            ? 'inset 6px 6px 12px #0f1a0f, inset -6px -6px 12px #253025'
+            : 'inset 6px 6px 12px #d6d3cd, inset -6px -6px 12px #ffffff'
+    };
+
     return (
-        <div className="relative">
+        <div className={`relative ${compact ? 'space-y-2' : 'space-y-4'}`} style={{ fontFamily: "'Nunito', sans-serif" }}>
             {/* Main Garden Card */}
             <motion.div
-                whileHover={{ scale: 1.02 }}
-                onClick={() => setShowDetails(!showDetails)}
-                className="cursor-pointer"
+                whileHover={previewOnly ? {} : { scale: 1.01 }}
+                onClick={previewOnly ? undefined : () => setShowDetails(!showDetails)}
+                className={previewOnly ? '' : 'cursor-pointer'}
             >
-                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a2e1a] via-[#1f3520] to-[#152a1f] border border-green-500/30 p-5 shadow-xl shadow-green-900/20">
-                    {/* Decorative elements */}
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-green-400/20 to-transparent rounded-bl-full" />
-                    <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-green-500/10 rounded-full blur-2xl" />
+                <div
+                    className={`relative overflow-hidden ${compact ? 'rounded-2xl p-3' : 'rounded-[2rem] p-6'}`}
+                    style={neoSurface}
+                >
+                    {/* Decorative Blob */}
+                    <div
+                        className="absolute -top-10 -right-10 w-32 h-32 rounded-full blur-3xl pointer-events-none"
+                        style={{ backgroundColor: `${greenColor}20` }}
+                    />
+                    <div
+                        className="absolute -bottom-10 -left-10 w-24 h-24 rounded-full blur-2xl pointer-events-none"
+                        style={{ backgroundColor: `${primaryColor}15` }}
+                    />
 
-                    <div className="relative flex items-center gap-4">
+                    <div className={`relative flex items-center ${compact ? 'gap-3' : 'gap-5'}`}>
                         {/* Plant Visual */}
                         <motion.div
                             className="relative"
-                            animate={{
-                                y: [0, -4, 0],
-                            }}
-                            transition={{
-                                duration: 3,
-                                repeat: Infinity,
-                                ease: "easeInOut"
-                            }}
+                            animate={{ y: [0, -6, 0] }}
+                            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                         >
-                            <div className="w-20 h-20 flex items-center justify-center rounded-2xl bg-gradient-to-br from-green-500/20 to-emerald-600/20 border border-green-500/30 shadow-lg shadow-green-500/10">
-                                <span className="text-4xl">{currentStage.emoji}</span>
-                            </div>
-                            {/* Growth sparkles */}
-                            <motion.div
-                                animate={{
-                                    opacity: [0.5, 1, 0.5],
-                                    scale: [1, 1.2, 1],
+                            <div
+                                className={`${compact ? 'w-14 h-14 rounded-xl' : 'w-20 h-20 rounded-2xl'} flex items-center justify-center`}
+                                style={{
+                                    ...neoInset,
+                                    background: isDarkMode
+                                        ? 'linear-gradient(145deg, #1f3820, #152815)'
+                                        : 'linear-gradient(145deg, #ffffff, #e6e6e6)'
                                 }}
+                            >
+                                <span className={compact ? 'text-2xl' : 'text-4xl'}>{currentStage.emoji}</span>
+                            </div>
+                            {/* Sparkle */}
+                            <motion.div
+                                animate={{ opacity: [0.5, 1, 0.5], scale: [1, 1.3, 1] }}
                                 transition={{ duration: 2, repeat: Infinity }}
                                 className="absolute -top-1 -right-1"
                             >
-                                <Sparkles className="text-yellow-400" size={16} />
+                                <Sparkles size={16} style={{ color: primaryColor }} />
                             </motion.div>
                         </motion.div>
 
                         {/* Info */}
-                        <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-bold text-white text-lg">{currentStage.name}</h3>
-                                <span className="text-xs text-green-400/80 bg-green-500/10 px-2 py-0.5 rounded-full">
-                                    {currentStage.description}
-                                </span>
+                        <div className="flex-1 min-w-0">
+                            <div className={`flex items-center gap-2 ${compact ? 'mb-1 flex-wrap' : 'mb-2'}`}>
+                                <h3 className={`font-bold ${compact ? 'text-base' : 'text-xl'}`} style={{ color: isDarkMode ? 'white' : textColor }}>
+                                    {currentStage.name}
+                                </h3>
+                                {!compact && (
+                                    <span
+                                        className="text-xs font-medium px-3 py-1 rounded-full"
+                                        style={{
+                                            backgroundColor: isDarkMode ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.1)',
+                                            color: greenColor
+                                        }}
+                                    >
+                                        {currentStage.description}
+                                    </span>
+                                )}
                             </div>
 
-                            {/* Progress bar */}
-                            <div className="relative h-2 bg-white/10 rounded-full overflow-hidden mb-2">
+                            {/* Neomorphic Progress Bar */}
+                            <div className={`relative ${compact ? 'h-2' : 'h-4'} rounded-full overflow-hidden mb-1`} style={neoInset}>
                                 <motion.div
                                     initial={{ width: 0 }}
                                     animate={{ width: `${progressToNext}%` }}
                                     transition={{ duration: 1, ease: "easeOut" }}
-                                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full"
+                                    className="absolute inset-y-0 left-0 rounded-full"
+                                    style={{
+                                        background: `linear-gradient(to right, ${greenColor}, #4ade80)`,
+                                        boxShadow: `0 0 10px ${greenColor}50`
+                                    }}
                                 />
                             </div>
 
-                            <p className="text-xs text-white/50">
+                            <p className={`${compact ? 'text-xs' : 'text-sm'} font-medium`} style={{ color: `${textColor}80` }}>
                                 {stageIndex < GROWTH_STAGES.length - 1
-                                    ? `${Math.round(progressToNext)}% menuju ${nextStage.name}`
-                                    : "Pohonmu sudah tumbuh sempurna! 🎉"
+                                    ? `${Math.round(progressToNext)}% to ${nextStage.name}`
+                                    : "Fully grown! 🎉"
                                 }
                             </p>
                         </div>
+
+                        {/* Expand Icon - Hidden in preview mode */}
+                        {!previewOnly && (
+                            <ChevronDown
+                                size={20}
+                                className={`transition-transform duration-300 ${showDetails ? 'rotate-180' : ''}`}
+                                style={{ color: `${textColor}60` }}
+                            />
+                        )}
                     </div>
 
                     {/* Rest Days Indicator */}
-                    <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
+                    <div
+                        className={`${compact ? 'mt-3 pt-2' : 'mt-5 pt-4'} flex items-center justify-between`}
+                        style={{ borderTop: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }}
+                    >
                         <div className="flex items-center gap-2">
-                            <Moon className="text-purple-400" size={16} />
-                            <span className="text-sm text-white/60">Jatah Istirahat Minggu Ini</span>
+                            <Moon size={compact ? 14 : 16} style={{ color: '#a78bfa' }} />
+                            <span className={`${compact ? 'text-xs' : 'text-sm'} font-medium`} style={{ color: `${textColor}80` }}>
+                                {compact ? 'Rest Days' : 'Rest Days This Week'}
+                            </span>
                         </div>
                         <div className="flex items-center gap-1">
                             {[...Array(data.restDaysAllowed)].map((_, i) => (
@@ -189,11 +259,13 @@ export default function GrowthGarden() {
                                     transition={{ delay: i * 0.1 }}
                                 >
                                     <Heart
-                                        size={18}
-                                        className={i < data.restDaysAllowed - data.restDaysUsed
-                                            ? "text-pink-400 fill-pink-400"
-                                            : "text-white/20"
-                                        }
+                                        size={compact ? 16 : 20}
+                                        className={i < data.restDaysAllowed - data.restDaysUsed ? "fill-current" : ""}
+                                        style={{
+                                            color: i < data.restDaysAllowed - data.restDaysUsed
+                                                ? '#f472b6'
+                                                : `${textColor}30`
+                                        }}
                                     />
                                 </motion.div>
                             ))}
@@ -206,69 +278,110 @@ export default function GrowthGarden() {
             <AnimatePresence>
                 {showDetails && (
                     <motion.div
-                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                        animate={{ opacity: 1, height: "auto", marginTop: 12 }}
-                        exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
                         className="overflow-hidden"
                     >
-                        <div className="rounded-2xl bg-[#1a2e1a]/90 border border-green-500/20 p-4 space-y-4 shadow-lg">
+                        <div className="rounded-[2rem] p-6 space-y-5" style={neoSurface}>
                             {/* Rest Day Button */}
                             {data.restDaysUsed < data.restDaysAllowed && (
                                 <motion.button
-                                    whileHover={{ scale: 1.02 }}
+                                    whileHover={{ scale: 1.02, y: -2 }}
                                     whileTap={{ scale: 0.98 }}
                                     onClick={(e) => { e.stopPropagation(); takeRestDay(); }}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-purple-300 font-medium transition-all hover:bg-purple-500/30"
+                                    className="w-full flex items-center justify-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all"
+                                    style={{
+                                        background: 'linear-gradient(135deg, rgba(167, 139, 250, 0.15), rgba(244, 114, 182, 0.15))',
+                                        border: '1px solid rgba(167, 139, 250, 0.3)',
+                                        color: '#a78bfa'
+                                    }}
                                 >
-                                    <Moon size={18} />
-                                    Ambil Hari Istirahat
+                                    <Moon size={20} />
+                                    Take a Rest Day
                                 </motion.button>
                             )}
 
                             {/* Philosophy message */}
-                            <div className="text-center py-3">
-                                <p className="text-sm text-white/40 italic leading-relaxed">
-                                    "Tidak apa-apa untuk beristirahat. Tanamanmu akan tetap tumbuh,
-                                    <br />karena pertumbuhan butuh waktu dan kesabaran."
+                            <div className="text-center py-4">
+                                <p className="text-sm italic leading-relaxed" style={{ color: `${textColor}60` }}>
+                                    "It's okay to rest. Your plant will keep growing,<br />
+                                    because growth takes time and patience."
                                 </p>
                             </div>
 
                             {/* How to earn points */}
-                            <div className="space-y-2">
-                                <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Cara Merawat Tanaman</p>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-white/5 border border-white/10">
-                                        <Droplets size={20} className="text-blue-400" />
-                                        <span className="text-xs text-white/60">Breathing</span>
-                                        <span className="text-xs text-green-400">+5 pts</span>
+                            <div className="space-y-3">
+                                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: `${textColor}50` }}>
+                                    How to Nurture Your Plant
+                                </p>
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div
+                                        className="flex flex-col items-center gap-2 p-4 rounded-2xl"
+                                        style={neoInset}
+                                    >
+                                        <Droplets size={22} style={{ color: '#60a5fa' }} />
+                                        <span className="text-xs font-medium" style={{ color: `${textColor}80` }}>Breathing</span>
+                                        <span className="text-xs font-bold" style={{ color: greenColor }}>+5 pts</span>
                                     </div>
-                                    <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-white/5 border border-white/10">
-                                        <Sun size={20} className="text-yellow-400" />
-                                        <span className="text-xs text-white/60">Chat</span>
-                                        <span className="text-xs text-green-400">+3 pts</span>
+                                    <div
+                                        className="flex flex-col items-center gap-2 p-4 rounded-2xl"
+                                        style={neoInset}
+                                    >
+                                        <Sun size={22} style={{ color: primaryColor }} />
+                                        <span className="text-xs font-medium" style={{ color: `${textColor}80` }}>Chat</span>
+                                        <span className="text-xs font-bold" style={{ color: greenColor }}>+3 pts</span>
                                     </div>
-                                    <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-white/5 border border-white/10">
-                                        <Leaf size={20} className="text-green-400" />
-                                        <span className="text-xs text-white/60">Task</span>
-                                        <span className="text-xs text-green-400">+2 pts</span>
+                                    <div
+                                        className="flex flex-col items-center gap-2 p-4 rounded-2xl"
+                                        style={neoInset}
+                                    >
+                                        <Leaf size={22} style={{ color: greenColor }} />
+                                        <span className="text-xs font-medium" style={{ color: `${textColor}80` }}>Journal</span>
+                                        <span className="text-xs font-bold" style={{ color: greenColor }}>+2 pts</span>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Growth stages preview */}
-                            <div className="space-y-2">
-                                <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Tahap Pertumbuhan</p>
-                                <div className="flex justify-between">
+                            <div className={compact ? 'space-y-2' : 'space-y-3'}>
+                                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: `${textColor}50` }}>
+                                    Growth Stages
+                                </p>
+                                <div className="flex justify-between items-end">
                                     {GROWTH_STAGES.map((stage, i) => (
-                                        <div
+                                        <motion.div
                                             key={stage.name}
+                                            initial={{ scale: 0, opacity: 0 }}
+                                            animate={{ scale: 1, opacity: 1 }}
+                                            transition={{ delay: i * 0.1 }}
                                             className={`flex flex-col items-center gap-1 ${i <= stageIndex ? 'opacity-100' : 'opacity-30'}`}
                                         >
-                                            <span className="text-xl">{stage.emoji}</span>
-                                            <span className="text-[10px] text-white/60">{stage.minPoints}</span>
-                                        </div>
+                                            <div
+                                                className={`${compact ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'} flex items-center justify-center`}
+                                                style={i <= stageIndex ? neoBtn : neoInset}
+                                            >
+                                                <span className={compact ? 'text-sm' : 'text-lg'}>{stage.emoji}</span>
+                                            </div>
+                                            <span className="text-[10px] font-medium" style={{ color: `${textColor}60` }}>
+                                                {stage.minPoints}
+                                            </span>
+                                        </motion.div>
                                     ))}
                                 </div>
+                            </div>
+
+                            {/* Total Points */}
+                            <div
+                                className={`flex items-center justify-between ${compact ? 'p-3 rounded-xl' : 'p-4 rounded-2xl'}`}
+                                style={neoInset}
+                            >
+                                <span className={`${compact ? 'text-xs' : 'text-sm'} font-medium`} style={{ color: `${textColor}80` }}>
+                                    Total Wellness Points
+                                </span>
+                                <span className={`${compact ? 'text-lg' : 'text-xl'} font-bold`} style={{ color: greenColor }}>
+                                    {data.totalWellnessPoints}
+                                </span>
                             </div>
                         </div>
                     </motion.div>

@@ -306,22 +306,22 @@ export default function BurnoutView() {
                     height: 8px;
                 }
                 .custom-scrollbar::-webkit-scrollbar-track {
-                    background: ${isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)'};
+                    background: ${isDarkMode ? 'rgba(255, 171, 128, 0.1)' : 'rgba(255, 171, 128, 0.15)'};
                     border-radius: 10px;
                 }
                 .custom-scrollbar::-webkit-scrollbar-thumb {
-                    background: ${isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'};
+                    background: ${isDarkMode ? 'rgba(255, 171, 128, 0.4)' : 'rgba(255, 171, 128, 0.5)'};
                     border-radius: 10px;
                     border: 2px solid transparent;
                     background-clip: content-box;
                 }
                 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                    background: ${isDarkMode ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.2)'};
+                    background: ${isDarkMode ? 'rgba(255, 171, 128, 0.6)' : 'rgba(255, 171, 128, 0.7)'};
                     background-clip: content-box;
                 }
                 .custom-scrollbar {
                     scrollbar-width: thin;
-                    scrollbar-color: ${isDarkMode ? 'rgba(255, 255, 255, 0.15) rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.03)'};
+                    scrollbar-color: ${isDarkMode ? 'rgba(255, 171, 128, 0.4) rgba(255, 171, 128, 0.1)' : 'rgba(255, 171, 128, 0.5) rgba(255, 171, 128, 0.15)'};
                 }
                 
                 @keyframes breathe {
@@ -338,11 +338,27 @@ export default function BurnoutView() {
                     0% { transform: translateX(-100%); }
                     100% { transform: translateX(100%); }
                 }
+
+                @keyframes slideUpFade {
+                    from {
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                .animate-entry {
+                    opacity: 0;
+                    animation: slideUpFade 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+                }
             `}</style>
 
-            {/* Main Container - Scrollable Page */}
+            {/* Main Container - No Scroll */}
             <div
-                className={`min-h-screen w-full overflow-y-auto custom-scrollbar transition-colors duration-300 selection:bg-orange-200`}
+                className={`h-screen w-full overflow-hidden transition-colors duration-300 selection:bg-orange-200`}
                 style={{
                     fontFamily: "'Nunito', sans-serif",
                     backgroundColor: isDarkMode ? '#1C1C1E' : '#FFFBF0',
@@ -370,31 +386,11 @@ export default function BurnoutView() {
                     />
                 </div>
 
-                {/* Main Content - Scrollable */}
-                <main className="px-4 sm:px-6 lg:px-8 pb-8 pt-4 max-w-7xl mx-auto w-full z-0">
-                    {/* Top Bar with Exit Button */}
-                    <div className="flex items-center justify-between mb-6">
-                        <button
-                            onClick={() => setMode(null)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-clay-btn hover:shadow-clay-inset text-sm font-bold transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 group ${isDarkMode ? 'text-white/70' : 'text-stone-600'}`}
-                            style={{ backgroundColor: isDarkMode ? '#1C1C1E' : '#FFFBF0' }}
-                        >
-                            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                            <span>Exit</span>
-                        </button>
-
-                        {/* Theme Toggle */}
-                        <button
-                            onClick={toggleTheme}
-                            className={`size-10 rounded-full shadow-clay-btn flex items-center justify-center transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:shadow-clay-inset ${isDarkMode ? 'text-yellow-300' : 'text-stone-600'}`}
-                            style={{ backgroundColor: isDarkMode ? '#1C1C1E' : '#FFFBF0' }}
-                        >
-                            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-                        </button>
-                    </div>
+                {/* Main Content */}
+                <main className="px-4 sm:px-6 lg:px-8 pb-8 pt-4 max-w-7xl mx-auto w-full z-0 h-full flex flex-col">
 
                     {/* Welcome Section */}
-                    <section className="mb-6 text-center" style={{ animation: 'breathe 8s ease-in-out infinite' }}>
+                    <section className="mb-6 text-center animate-entry" style={{ animationDelay: '0.1s' }}>
                         <h2 className={`text-2xl sm:text-3xl md:text-4xl font-extrabold mb-2 tracking-tight ${isDarkMode ? 'text-white' : 'text-stone-700'}`}>
                             Your Resilience Story, {userName}.
                         </h2>
@@ -406,7 +402,7 @@ export default function BurnoutView() {
                     {/* Two Column Grid - 3:1 Ratio */}
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6 items-start">
                         {/* Left: Chat Panel (3 cols) */}
-                        <div className="lg:col-span-3 flex flex-col">
+                        <div className="lg:col-span-3 flex flex-col animate-entry" style={{ animationDelay: '0.2s' }}>
                             <div
                                 className="clay-card-base shadow-clay-card relative overflow-hidden p-4 sm:p-6 flex flex-col"
                                 style={{ backgroundColor: isDarkMode ? '#252528' : '#F5F8FF', maxHeight: '600px' }}
@@ -419,16 +415,20 @@ export default function BurnoutView() {
                                 {/* Chat Header */}
                                 <div className="relative z-10 flex items-center gap-4 mb-4 flex-shrink-0">
                                     <div
-                                        className="size-10 rounded-full flex items-center justify-center shadow-clay-btn"
+                                        className="size-10 rounded-full flex items-center justify-center shadow-clay-btn overflow-hidden"
                                         style={{
                                             backgroundColor: isDarkMode ? '#2a3a4a' : '#E1F6FF',
                                             color: isDarkMode ? '#93c5fd' : '#70BBE8'
                                         }}
                                     >
-                                        <Sparkles size={20} />
+                                        {aiPersona?.avatar ? (
+                                            <img src={aiPersona.avatar} alt={aiPersona.name} className="size-full object-cover" />
+                                        ) : (
+                                            <Sparkles size={20} />
+                                        )}
                                     </div>
                                     <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-stone-700'}`}>
-                                        The Storyteller AI
+                                        {aiPersona?.name || 'Your AI Friend'}
                                     </h3>
                                 </div>
 
@@ -437,13 +437,17 @@ export default function BurnoutView() {
                                     {chatMessages.length === 0 && (
                                         <div className="flex items-start gap-3">
                                             <div
-                                                className="size-8 rounded-full flex items-center justify-center flex-shrink-0"
+                                                className="size-8 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
                                                 style={{
                                                     backgroundColor: isDarkMode ? '#2a3a4a' : '#E1F6FF',
                                                     color: isDarkMode ? '#93c5fd' : '#70BBE8'
                                                 }}
                                             >
-                                                <Sparkles size={14} />
+                                                {aiPersona?.avatar ? (
+                                                    <img src={aiPersona.avatar} alt={aiPersona.name} className="size-full object-cover" />
+                                                ) : (
+                                                    <Sparkles size={14} />
+                                                )}
                                             </div>
                                             <div className="ai-chat-bubble px-4 py-3 max-w-[85%]">
                                                 <p className={`text-sm font-medium leading-relaxed ${isDarkMode ? 'text-white/90' : 'text-stone-700'}`}>
@@ -457,13 +461,17 @@ export default function BurnoutView() {
                                         <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} items-start gap-3`}>
                                             {msg.role === "ai" && (
                                                 <div
-                                                    className="size-8 rounded-full flex items-center justify-center flex-shrink-0"
+                                                    className="size-8 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
                                                     style={{
                                                         backgroundColor: isDarkMode ? '#2a3a4a' : '#E1F6FF',
                                                         color: isDarkMode ? '#93c5fd' : '#70BBE8'
                                                     }}
                                                 >
-                                                    <Sparkles size={14} />
+                                                    {aiPersona?.avatar ? (
+                                                        <img src={aiPersona.avatar} alt={aiPersona.name} className="size-full object-cover" />
+                                                    ) : (
+                                                        <Sparkles size={14} />
+                                                    )}
                                                 </div>
                                             )}
                                             <div className={`px-4 py-3 max-w-[85%] ${msg.role === "user" ? "user-chat-bubble" : "ai-chat-bubble"}`}>
@@ -488,13 +496,17 @@ export default function BurnoutView() {
                                     {isChatLoading && (
                                         <div className="flex justify-start items-start gap-3">
                                             <div
-                                                className="size-8 rounded-full flex items-center justify-center flex-shrink-0"
+                                                className="size-8 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
                                                 style={{
                                                     backgroundColor: isDarkMode ? '#2a3a4a' : '#E1F6FF',
                                                     color: isDarkMode ? '#93c5fd' : '#70BBE8'
                                                 }}
                                             >
-                                                <Sparkles size={14} />
+                                                {aiPersona?.avatar ? (
+                                                    <img src={aiPersona.avatar} alt={aiPersona.name} className="size-full object-cover" />
+                                                ) : (
+                                                    <Sparkles size={14} />
+                                                )}
                                             </div>
                                             <div className="ai-chat-bubble px-4 py-3">
                                                 <div className="flex gap-1">
@@ -551,10 +563,11 @@ export default function BurnoutView() {
                         </div>
 
                         {/* Right: Growth Garden Panel (1 col) */}
-                        <div className="lg:col-span-1">
+                        <div className="lg:col-span-1 flex flex-col gap-4">
                             <div
-                                className="clay-card-base shadow-clay-card relative overflow-hidden p-4 sm:p-5 flex flex-col"
+                                className="clay-card-base shadow-clay-card relative overflow-hidden p-4 sm:p-5 flex flex-col animate-entry"
                                 style={{
+                                    animationDelay: '0.3s',
                                     backgroundColor: isDarkMode ? '#1a2e1a' : '#E0F2F7',
                                     backgroundImage: isDarkMode
                                         ? 'none'
@@ -627,8 +640,9 @@ export default function BurnoutView() {
                             {/* Current AI Persona Card - Separate Card Below Growth Garden */}
                             <button
                                 onClick={() => setShowCreatePersona(true)}
-                                className="clay-card-base shadow-clay-card relative overflow-hidden p-4 mt-4 w-full text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                                className="clay-card-base shadow-clay-card relative overflow-hidden p-4 w-full text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] animate-entry"
                                 style={{
+                                    animationDelay: '0.4s',
                                     backgroundColor: isDarkMode ? '#2a2520' : '#FFF8E8',
                                     backgroundImage: isDarkMode
                                         ? 'none'
@@ -688,8 +702,30 @@ export default function BurnoutView() {
 
 
 
-                {/* Sounds Button - Bottom Left */}
-                <div className="fixed bottom-6 left-6 z-50">
+                {/* Exit Button - Fixed Top Right */}
+                <div className="fixed top-6 right-6 z-50">
+                    <button
+                        onClick={() => setMode(null)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-clay-btn hover:shadow-clay-inset text-sm font-bold transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 group ${isDarkMode ? 'text-white/70' : 'text-stone-600'}`}
+                        style={{ backgroundColor: isDarkMode ? '#1C1C1E' : '#FFFBF0' }}
+                    >
+                        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+                        <span>Exit</span>
+                    </button>
+                </div>
+
+                {/* Theme Toggle & Sounds Button - Bottom Right */}
+                <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
+                    {/* Theme Toggle */}
+                    <button
+                        onClick={toggleTheme}
+                        className={`size-12 rounded-full shadow-clay-btn flex items-center justify-center transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:shadow-clay-inset ${isDarkMode ? 'text-yellow-300' : 'text-stone-600'}`}
+                        style={{ backgroundColor: isDarkMode ? '#1C1C1E' : '#FFFBF0' }}
+                    >
+                        {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+                    </button>
+
+                    {/* Music Button */}
                     <div className="relative group">
                         <button
                             onClick={() => setIsSoundMenuOpen(!isSoundMenuOpen)}
@@ -705,7 +741,7 @@ export default function BurnoutView() {
                         {/* Sound Menu Popup */}
                         {isSoundMenuOpen && (
                             <div
-                                className="absolute bottom-full mb-2 left-0 w-32 rounded-xl shadow-clay-card p-2 space-y-1"
+                                className="absolute bottom-full mb-2 right-0 w-32 rounded-xl shadow-clay-card p-2 space-y-1"
                                 style={{ backgroundColor: isDarkMode ? '#1C1C1E' : '#FFFBF0' }}
                             >
                                 {SOUND_OPTIONS.map((sound) => (
@@ -724,17 +760,6 @@ export default function BurnoutView() {
                             </div>
                         )}
                     </div>
-                </div>
-
-                {/* Mobile Exit Button */}
-                <div className="fixed top-20 right-4 z-50 md:hidden">
-                    <button
-                        onClick={() => setMode(null)}
-                        className={`size-10 rounded-full shadow-clay-btn flex items-center justify-center ${isDarkMode ? 'text-white/70' : 'text-stone-600'}`}
-                        style={{ backgroundColor: isDarkMode ? '#1C1C1E' : '#FFFBF0' }}
-                    >
-                        <ArrowLeft size={18} />
-                    </button>
                 </div>
 
                 {/* Modals */}

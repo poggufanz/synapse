@@ -37,11 +37,14 @@ export default function CreatePersonaPage({ onClose, isDarkMode = false }: Creat
     const [selectedLanguage, setSelectedLanguage] = useState("Indonesian");
     const [interactionStyle, setInteractionStyle] = useState("");
 
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
     // Generate persona from character name
     const handleGenerate = async () => {
         if (!searchQuery.trim()) return;
 
         setIsGenerating(true);
+        setErrorMessage(null);
 
         try {
             // Generate persona traits only (avatar is now user-uploaded)
@@ -51,13 +54,18 @@ export default function CreatePersonaPage({ onClose, isDarkMode = false }: Creat
                 body: JSON.stringify({ characterName: searchQuery }),
             });
 
+            const data = await response.json();
+
             if (response.ok) {
-                const data = await response.json();
                 setGeneratedPersona(data);
                 setInteractionStyle(data.interactionStyle || "");
+            } else {
+                // Show error message from API
+                setErrorMessage(data.error || "Failed to generate persona. Please try again.");
             }
         } catch (error) {
             console.error("Generate persona error:", error);
+            setErrorMessage("Network error. Please check your connection and try again.");
         } finally {
             setIsGenerating(false);
         }
@@ -227,6 +235,28 @@ export default function CreatePersonaPage({ onClose, isDarkMode = false }: Creat
                                 </button>
                             </label>
                         </div>
+
+                        {/* Error Notification */}
+                        {errorMessage && (
+                            <div
+                                className="w-full rounded-2xl p-4 flex items-center gap-3"
+                                style={{
+                                    backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
+                                    border: `1px solid ${isDarkMode ? 'rgba(239, 68, 68, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                                }}
+                            >
+                                <div className="size-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                                    <X size={16} className="text-red-500" />
+                                </div>
+                                <p className="text-sm font-medium text-red-500 flex-1">{errorMessage}</p>
+                                <button
+                                    onClick={() => setErrorMessage(null)}
+                                    className="text-red-500 hover:text-red-400 transition-colors"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                        )}
 
                         {/* Generated Persona Card */}
                         {generatedPersona && (

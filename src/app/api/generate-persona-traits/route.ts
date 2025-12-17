@@ -1,7 +1,8 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+// Initialize the new GenAI client
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 export async function POST(req: Request) {
     try {
@@ -15,20 +16,42 @@ export async function POST(req: Request) {
             );
         }
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = `You are a persona generator. Search the web to find accurate information about this character.
 
-        const prompt = `You are a persona generator. Given a character name, generate a JSON object with the following fields:
-- "name": The full name of the character (cleaned up if needed).
-- "type": A short title/role for this character (e.g., "Detective & Logician", "Jedi Master", "Friendly Neighborhood Hero"). Max 3 words.
-- "interactionStyle": A short paragraph (2-3 sentences) describing how this character would interact with someone who is stressed or burned out. Write in first person as if the character is introducing themselves. Be creative and capture their essence.
+SEARCH INSTRUCTIONS:
+1. For GAME/ANIME/FICTIONAL characters: Look for their official wiki or fandom page
+2. For REAL PEOPLE (actors, celebrities): Look for their wikipedia or biography
+3. VERIFY the information from the search results before using it
 
-Character name: "${characterName}"
+Character to search: "${characterName}"
 
-Respond ONLY with valid JSON, no markdown code blocks, no explanation. Example format:
-{"name": "Sherlock Holmes", "type": "Detective & Logician", "interactionStyle": "I will analyze your problems with logical precision..."}`;
+From your search results, extract:
+- Their EXACT official name (no made-up surnames)
+- Their VERIFIED faction/organization/role from official sources
+- Their personality traits as described in official sources
 
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
+Generate JSON with:
+- "name": EXACT name from search results. No fake surnames. If only first name is known, use only that.
+- "type": Their VERIFIED role + affiliation from search (e.g., "Mockingbird Agent" for Vivian from ZZZ, "Marvel Actor" for RDJ). Max 5 words.
+- "interactionStyle": 2-3 sentences in first person based on their VERIFIED personality from search results.
+
+IMPORTANT: Use ONLY information you found in search results. If search doesn't return clear info, keep it simple and generic.
+
+Respond ONLY with valid JSON, no markdown:
+{"name": "...", "type": "...", "interactionStyle": "..."}`;
+
+        // Use Google Search grounding tool
+        const groundingTool = { googleSearch: {} };
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                tools: [groundingTool],
+            },
+        });
+
+        const responseText = response.text || "";
 
         // Parse JSON from response
         let parsed;
@@ -54,11 +77,27 @@ Respond ONLY with valid JSON, no markdown code blocks, no explanation. Example f
             type: parsed.type || "Wise Companion",
             interactionStyle: parsed.interactionStyle || `I am here to guide you.`,
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Generate Persona Error:", error);
+
+        // Handle specific error types
+        let errorMessage = "Failed to generate persona. Please try again.";
+        let statusCode = 500;
+
+        if (error?.status === 503 || error?.message?.includes("overloaded")) {
+            errorMessage = "AI model is currently overloaded. Please try again in a few seconds.";
+            statusCode = 503;
+        } else if (error?.status === 429 || error?.message?.includes("rate limit")) {
+            errorMessage = "Too many requests. Please wait a moment and try again.";
+            statusCode = 429;
+        } else if (error?.status === 400) {
+            errorMessage = "Invalid request. Please check the character name.";
+            statusCode = 400;
+        }
+
         return NextResponse.json(
-            { error: "Failed to generate persona" },
-            { status: 500 }
+            { error: errorMessage },
+            { status: statusCode }
         );
     }
 }

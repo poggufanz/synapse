@@ -125,6 +125,7 @@ export default function ProductiveView() {
     const [isLoading, setIsLoading] = useState(false);
     const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
     const [showBacklog, setShowBacklog] = useState(false);
+    const [droppedTaskId, setDroppedTaskId] = useState<string | null>(null);
 
     // Task limit constant
     const MAX_TASKS = 10;
@@ -141,7 +142,7 @@ export default function ProductiveView() {
         { label: "15m", value: 15 },
         { label: "25m", value: 25 },
         { label: "45m", value: 45 },
-        { label: "60m", value: 60 },
+        { label: "90m", value: 90 },
     ];
 
     // Show empathetic toast when coming from BurnoutView while anxious
@@ -446,7 +447,7 @@ export default function ProductiveView() {
             summary: summary,
             energy: selectedEnergy, // Use selected energy instead of auto-detect
             source: "Manual",
-            duration: parsed.duration || selectedDuration,
+            duration: Math.min(parsed.duration || selectedDuration, 90), // Cap at 90 minutes for ultradian rhythm
             isCompleted: false,
             isAIGenerated: false,
         };
@@ -500,11 +501,21 @@ export default function ProductiveView() {
         const newTasks = [...tasks];
         const draggedTask = newTasks[draggedIndex];
 
+        // Check if moving from backlog (index >= 3) to focus area (target index < 3)
+        const isMovingToFocus = draggedIndex >= 3 && index < 3;
+
         newTasks.splice(draggedIndex, 1);
         newTasks.splice(index, 0, draggedTask);
 
         setTasks(newTasks);
         setDraggedIndex(index);
+
+        // Trigger drop animation when moving from backlog to focus
+        if (isMovingToFocus) {
+            setDroppedTaskId(draggedTask.id);
+            setTimeout(() => setDroppedTaskId(null), 600);
+            toast.success("🎯 Task moved to Today's Focus!", { duration: 2000 });
+        }
     };
 
     const handleDragEnd = () => {
@@ -572,6 +583,22 @@ export default function ProductiveView() {
                 .clay-card-hover:hover {
                     transform: translateY(-2px);
                     box-shadow: 10px 10px 20px rgba(166, 180, 200, 0.5), -10px -10px 20px rgba(255, 255, 255, 1);
+                }
+                @keyframes dropIntoFocus {
+                    0% {
+                        transform: scale(1.15) translateY(-10px);
+                        box-shadow: 0 20px 40px rgba(59, 130, 246, 0.4);
+                    }
+                    50% {
+                        transform: scale(0.95) translateY(5px);
+                    }
+                    100% {
+                        transform: scale(1) translateY(0);
+                        box-shadow: none;
+                    }
+                }
+                .animate-drop-in {
+                    animation: dropIntoFocus 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
                 }
             `}</style>
             {/* Abstract Background Shapes */}
@@ -1213,7 +1240,7 @@ export default function ProductiveView() {
                                 {/* Top 3 Tasks - Highlighted */}
                                 <div className="space-y-3">
                                     {tasks.slice(0, 3).map((task, index) => (
-                                        <div key={task.id} className="relative">
+                                        <div key={task.id} className={`relative ${droppedTaskId === task.id ? 'animate-drop-in' : ''}`}>
                                             {/* Priority Badge */}
                                             <div className="absolute -left-2 -top-2 z-10 w-7 h-7 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-black shadow-lg">
                                                 {index + 1}

@@ -14,6 +14,7 @@ type ThinkingMode = "off" | "dynamic" | "low" | "medium" | "high";
 interface ChatMessage {
     role: "user" | "ai";
     content: string;
+    attachments?: Array<{ data: string; mimeType: string; name: string; preview?: string }>;
 }
 
 interface Conversation {
@@ -155,7 +156,7 @@ export default function SparringPartnerPage() {
             setCurrentConversationId(newConv.id);
         }
 
-        const userMsg: ChatMessage = { role: "user", content: input };
+        const userMsg: ChatMessage = { role: "user", content: input, attachments: attachments.length > 0 ? attachments.map(a => ({ data: a.data, mimeType: a.mimeType, name: a.name, preview: a.preview })) : undefined };
         setMessages((prev) => [...prev, userMsg]);
         setInput("");
         setIsLoading(true);
@@ -377,7 +378,28 @@ export default function SparringPartnerPage() {
                                             <ReactMarkdown>{msg.content}</ReactMarkdown>
                                         </div>
                                     ) : (
-                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                        <>
+                                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                            {msg.attachments && msg.attachments.length > 0 && (
+                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                    {msg.attachments.map((att, attIdx) => (
+                                                        att.mimeType.startsWith('image/') && att.preview ? (
+                                                            <img
+                                                                key={attIdx}
+                                                                src={att.preview}
+                                                                alt={att.name}
+                                                                className="max-w-[200px] max-h-[150px] rounded-lg border border-white/20 object-cover"
+                                                            />
+                                                        ) : (
+                                                            <div key={attIdx} className="flex items-center gap-1 px-2 py-1 bg-slate-700/50 rounded-lg text-xs text-slate-300">
+                                                                <FileText size={12} />
+                                                                {att.name}
+                                                            </div>
+                                                        )
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             </div>
@@ -568,6 +590,6 @@ export default function SparringPartnerPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

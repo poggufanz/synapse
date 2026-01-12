@@ -36,6 +36,36 @@ const CHAT_HISTORY_KEY = "synapse-burnout-chat-history";
 const THEME_KEY = "synapse-burnout-theme";
 const SOUND_KEY = "synapse-burnout-sound";
 
+// Helper function to get persona-based emoji avatar
+const getPersonaEmoji = (aiPersona: { name?: string; type?: string } | null): string => {
+    if (!aiPersona) return "✨";
+
+    const name = (aiPersona.name || "").toLowerCase();
+    const type = (aiPersona.type || "").toLowerCase();
+
+    // Character-based emoji mapping
+    if (name.includes("yoda")) return "🧘";
+    if (name.includes("sherlock") || name.includes("holmes") || name.includes("detective")) return "🔍";
+    if (name.includes("einstein") || name.includes("genius")) return "🧠";
+    if (name.includes("gandalf") || name.includes("wizard") || name.includes("dumbledore")) return "🧙";
+    if (name.includes("coach") || name.includes("trainer")) return "💪";
+    if (name.includes("therapist") || name.includes("counselor")) return "💙";
+    if (name.includes("nurse") || name.includes("doctor") || name.includes("medic")) return "🩺";
+    if (name.includes("teacher") || name.includes("professor") || name.includes("guru")) return "📚";
+    if (name.includes("artist") || name.includes("creative")) return "🎨";
+    if (name.includes("friend") || name.includes("buddy")) return "🤗";
+    if (name.includes("mentor") || name.includes("sage")) return "🌟";
+    if (name.includes("monk") || name.includes("zen")) return "☯️";
+
+    // Type-based fallback
+    if (type.includes("wise") || type.includes("calm")) return "🧘";
+    if (type.includes("analytical") || type.includes("logical")) return "🔍";
+    if (type.includes("supportive") || type.includes("caring")) return "💙";
+    if (type.includes("motivational") || type.includes("energetic")) return "💪";
+
+    return "✨";
+};
+
 export default function BurnoutView() {
     const setMode = useEnergyStore((state) => state.setMode);
     const persona = useEnergyStore((state) => state.persona);
@@ -405,7 +435,7 @@ export default function BurnoutView() {
                         <div className="lg:col-span-3 flex flex-col animate-entry" style={{ animationDelay: '0.2s' }}>
                             <div
                                 className="clay-card-base shadow-clay-card relative overflow-hidden p-4 sm:p-6 flex flex-col"
-                                style={{ backgroundColor: isDarkMode ? '#252528' : '#F5F8FF', maxHeight: '600px' }}
+                                style={{ backgroundColor: isDarkMode ? '#252528' : '#F5F8FF', minHeight: '500px', maxHeight: '600px' }}
                             >
                                 {/* Decorative gradients */}
                                 <div className={`absolute inset-0 bg-gradient-to-b ${isDarkMode ? 'from-blue-900/20' : 'from-[#E1F6FF]/50'} to-transparent pointer-events-none`} />
@@ -424,11 +454,11 @@ export default function BurnoutView() {
                                         {aiPersona?.avatar ? (
                                             <img src={aiPersona.avatar} alt={aiPersona.name} className="size-full object-cover" />
                                         ) : (
-                                            <Sparkles size={20} />
+                                            <span className="text-xl">{getPersonaEmoji(aiPersona)}</span>
                                         )}
                                     </div>
                                     <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-stone-700'}`}>
-                                        {aiPersona?.name || 'Your AI Friend'}
+                                        {aiPersona?.name || 'Your Friend'}
                                     </h3>
                                 </div>
 
@@ -446,11 +476,11 @@ export default function BurnoutView() {
                                                 {aiPersona?.avatar ? (
                                                     <img src={aiPersona.avatar} alt={aiPersona.name} className="size-full object-cover" />
                                                 ) : (
-                                                    <Sparkles size={14} />
+                                                    <span className="text-sm">{getPersonaEmoji(aiPersona)}</span>
                                                 )}
                                             </div>
                                             <div className="ai-chat-bubble px-4 py-3 max-w-[85%]">
-                                                <p className={`text-sm font-medium leading-relaxed ${isDarkMode ? 'text-white/90' : 'text-stone-700'}`}>
+                                                <p className={`text-sm font-bold leading-relaxed ${isDarkMode ? 'text-white/90' : 'text-stone-700'}`}>
                                                     Hello {userName}! Let's begin the first chapter of your Resilience Story. What kind of situations or feelings usually lead you to a challenging moment?
                                                 </p>
                                             </div>
@@ -470,12 +500,12 @@ export default function BurnoutView() {
                                                     {aiPersona?.avatar ? (
                                                         <img src={aiPersona.avatar} alt={aiPersona.name} className="size-full object-cover" />
                                                     ) : (
-                                                        <Sparkles size={14} />
+                                                        <span className="text-sm">{getPersonaEmoji(aiPersona)}</span>
                                                     )}
                                                 </div>
                                             )}
                                             <div className={`px-4 py-3 max-w-[85%] ${msg.role === "user" ? "user-chat-bubble" : "ai-chat-bubble"}`}>
-                                                <p className={`text-sm font-medium leading-relaxed ${isDarkMode ? 'text-white/90' : 'text-stone-700'}`}>
+                                                <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-white/90' : 'text-stone-700'} ${msg.role === "ai" ? 'font-bold' : 'font-medium'}`}>
                                                     {msg.content}
                                                 </p>
                                             </div>
@@ -505,7 +535,7 @@ export default function BurnoutView() {
                                                 {aiPersona?.avatar ? (
                                                     <img src={aiPersona.avatar} alt={aiPersona.name} className="size-full object-cover" />
                                                 ) : (
-                                                    <Sparkles size={14} />
+                                                    <span className="text-sm">{getPersonaEmoji(aiPersona)}</span>
                                                 )}
                                             </div>
                                             <div className="ai-chat-bubble px-4 py-3">
@@ -678,7 +708,7 @@ export default function BurnoutView() {
                                     {/* Text Content */}
                                     <div className="flex-1 min-w-0">
                                         <p className={`text-[10px] font-extrabold uppercase tracking-widest ${isDarkMode ? 'text-amber-400/70' : 'text-amber-600'}`}>
-                                            {aiPersona ? 'Your Friend' : 'AI Friend'}
+                                            {aiPersona ? 'Your Friend' : 'Friend'}
                                         </p>
                                         <p className={`text-base font-bold truncate ${isDarkMode ? 'text-white' : 'text-stone-700'}`}>
                                             {aiPersona ? aiPersona.name : 'Customize your friend →'}

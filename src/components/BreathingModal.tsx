@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Volume2, VolumeX, Play, Pause, Settings } from "lucide-react";
+import { X, Volume2, VolumeX, Play, Pause } from "lucide-react";
 import { addWellnessPoints } from "./GrowthGarden";
 
 interface BreathingModalProps {
@@ -157,54 +157,49 @@ export default function BreathingModal({ isOpen, onClose, isDarkMode = false }: 
                 </button>
             </header>
 
-            {/* Main Content */}
-            <main className="flex-1 flex flex-col items-center justify-center relative px-4">
+            {/* Main Content - fixed layout that fits in viewport */}
+            <main className="flex-1 flex flex-col items-center justify-between px-4 min-h-0">
                 {/* Contextual Heading */}
-                <div className="text-center mb-8 z-10 space-y-2">
-                    <p className="font-medium tracking-widest text-sm uppercase" style={{ color: '#e56e06' }}>
+                <div className="text-center pt-2 z-10">
+                    <p className="font-medium tracking-widest text-xs uppercase mb-1" style={{ color: '#e56e06' }}>
                         Re-center your energy
                     </p>
-                    <h1 className={`text-4xl md:text-5xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-[#1c140d]'}`}>
+                    <h1 className={`text-3xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-[#1c140d]'}`}>
                         {text}
                     </h1>
                 </div>
 
-                {/* Breathing Visualizer (Neomorphic Orb) */}
-                <div className="relative flex items-center justify-center py-10">
-                    {/* Outer Rings */}
+                {/* Breathing Visualizer - fixed size container */}
+                <div className="relative flex items-center justify-center flex-shrink-0" style={{ height: '200px' }}>
+                    {/* Subtle outer glow ring - small and doesn't expand */}
                     <div
-                        className={`absolute rounded-full border opacity-50 transition-all duration-[4000ms] ease-in-out ${phase === "inhale" ? "w-[500px] h-[500px]" :
-                                phase === "hold" ? "w-[500px] h-[500px]" :
-                                    "w-[320px] h-[320px]"
+                        className={`absolute rounded-full transition-all duration-[4000ms] ease-in-out ${phase === "inhale" ? "w-48 h-48 opacity-40" :
+                            phase === "hold" ? "w-48 h-48 opacity-50" :
+                                "w-40 h-40 opacity-30"
                             }`}
-                        style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.4)' }}
-                    />
-                    <div
-                        className={`absolute rounded-full border opacity-60 transition-all duration-[4000ms] ease-in-out ${phase === "inhale" ? "w-[400px] h-[400px]" :
-                                phase === "hold" ? "w-[400px] h-[400px]" :
-                                    "w-[260px] h-[260px]"
-                            }`}
-                        style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.6)' }}
+                        style={{
+                            border: `2px solid ${isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(229,110,6,0.2)'}`,
+                        }}
                     />
 
-                    {/* Main Orb Container */}
+                    {/* Main Orb Container - fixed 180px */}
                     <div
-                        className="relative w-72 h-72 md:w-80 md:h-80 rounded-full flex items-center justify-center"
+                        className="relative w-44 h-44 rounded-full flex items-center justify-center"
                         style={{
                             backgroundColor: isDarkMode ? '#23180f' : '#fcf6f0',
                             boxShadow: isDarkMode
-                                ? '20px 20px 60px #1a120b, -20px -20px 60px #2c1e13'
-                                : '20px 20px 60px #e0d8cc, -20px -20px 60px #ffffff'
+                                ? '15px 15px 40px #1a120b, -15px -15px 40px #2c1e13'
+                                : '15px 15px 40px #e0d8cc, -15px -15px 40px #ffffff'
                         }}
                     >
-                        {/* Inner Track (Pressed) */}
+                        {/* Inner Track */}
                         <div
-                            className="w-56 h-56 rounded-full flex items-center justify-center relative overflow-hidden"
+                            className="w-32 h-32 rounded-full flex items-center justify-center relative overflow-hidden"
                             style={{
                                 backgroundColor: isDarkMode ? '#23180f' : '#fcf6f0',
                                 boxShadow: isDarkMode
-                                    ? 'inset 6px 6px 12px #1a120b, inset -6px -6px 12px #2c1e13'
-                                    : 'inset 6px 6px 12px #e0d8cc, inset -6px -6px 12px #ffffff'
+                                    ? 'inset 4px 4px 8px #1a120b, inset -4px -4px 8px #2c1e13'
+                                    : 'inset 4px 4px 8px #e0d8cc, inset -4px -4px 8px #ffffff'
                             }}
                         >
                             {/* Progress Fill */}
@@ -212,22 +207,22 @@ export default function BreathingModal({ isOpen, onClose, isDarkMode = false }: 
                                 className="absolute bottom-0 left-0 right-0 rounded-b-full transition-all duration-[4000ms]"
                                 style={{
                                     height: phase === "inhale" ? '60%' : phase === "hold" ? '60%' : '20%',
-                                    backgroundColor: 'rgba(229, 110, 6, 0.1)'
+                                    backgroundColor: 'rgba(229, 110, 6, 0.15)'
                                 }}
                             />
 
                             {/* Core (Breathing Element) */}
                             <div
-                                className={`rounded-full flex items-center justify-center z-10 transition-all duration-[4000ms] ease-in-out ${phase === "inhale" ? "w-32 h-32" :
-                                        phase === "hold" ? "w-32 h-32" :
-                                            "w-20 h-20"
+                                className={`rounded-full flex items-center justify-center z-10 transition-all duration-[4000ms] ease-in-out ${phase === "inhale" ? "w-16 h-16" :
+                                    phase === "hold" ? "w-16 h-16" :
+                                        "w-12 h-12"
                                     }`}
                                 style={{
                                     background: 'linear-gradient(to top right, #e56e06, #ff9e4d)',
-                                    boxShadow: `0 0 ${phase === "inhale" ? 40 : phase === "exhale" ? 15 : 30}px rgba(229,110,6,${phase === "inhale" ? 0.4 : phase === "exhale" ? 0.2 : 0.3})`
+                                    boxShadow: `0 0 ${phase === "inhale" ? 25 : phase === "exhale" ? 10 : 20}px rgba(229,110,6,${phase === "inhale" ? 0.5 : phase === "exhale" ? 0.3 : 0.4})`
                                 }}
                             >
-                                <span className={`text-white transition-all duration-500 ${phase === "exhale" ? "text-xl" : "text-3xl"}`}>
+                                <span className={`text-white transition-all duration-500 ${phase === "exhale" ? "text-lg" : "text-2xl"}`}>
                                     🌬️
                                 </span>
                             </div>
@@ -235,45 +230,45 @@ export default function BreathingModal({ isOpen, onClose, isDarkMode = false }: 
 
                         {/* Floating Indicator Dot */}
                         <div
-                            className="absolute top-4 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full"
+                            className="absolute top-3 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full"
                             style={{
                                 backgroundColor: '#e56e06',
-                                boxShadow: '0 0 10px #e56e06'
+                                boxShadow: '0 0 8px #e56e06'
                             }}
                         />
                     </div>
                 </div>
 
                 {/* Instruction Text */}
-                <p className={`text-base font-normal mt-8 mb-10 tracking-wide text-center max-w-md px-4 ${isDarkMode ? 'text-white/50' : 'text-[#9e7047]'}`}>
+                <p className={`text-xs font-normal tracking-wide text-center max-w-sm px-4 ${isDarkMode ? 'text-white/50' : 'text-[#9e7047]'}`}>
                     Follow the rhythm of the light. Let your thoughts pass like clouds.
                 </p>
 
-                {/* Controls Container */}
-                <div className="flex flex-col items-center gap-8 w-full max-w-lg px-6 z-10">
-                    {/* Duration Selector */}
+                {/* Controls Container - compact */}
+                <div className="flex flex-col items-center gap-3 w-full max-w-lg px-6 z-10 pb-2">
+                    {/* Duration Selector - smaller */}
                     <div
-                        className="flex p-2 rounded-full gap-2 w-full max-w-xs"
+                        className="flex p-1.5 rounded-full gap-1 w-full max-w-[240px]"
                         style={{
                             backgroundColor: isDarkMode ? '#23180f' : '#fcf6f0',
                             boxShadow: isDarkMode
-                                ? 'inset 6px 6px 12px #1a120b, inset -6px -6px 12px #2c1e13'
-                                : 'inset 6px 6px 12px #e0d8cc, inset -6px -6px 12px #ffffff'
+                                ? 'inset 4px 4px 8px #1a120b, inset -4px -4px 8px #2c1e13'
+                                : 'inset 4px 4px 8px #e0d8cc, inset -4px -4px 8px #ffffff'
                         }}
                     >
                         {DURATIONS.map((dur, idx) => (
                             <button
                                 key={dur.label}
                                 onClick={() => { setSelectedDuration(idx); setElapsedTime(0); }}
-                                className={`flex-1 py-2 rounded-full font-medium text-sm transition-all ${selectedDuration === idx
-                                        ? 'font-bold'
-                                        : isDarkMode ? 'text-white/40' : 'text-gray-400'
+                                className={`flex-1 py-1.5 rounded-full font-medium text-xs transition-all ${selectedDuration === idx
+                                    ? 'font-bold'
+                                    : isDarkMode ? 'text-white/40' : 'text-gray-400'
                                     }`}
                                 style={selectedDuration === idx ? {
                                     backgroundColor: isDarkMode ? '#23180f' : '#fcf6f0',
                                     boxShadow: isDarkMode
-                                        ? '4px 4px 8px #1a120b, -4px -4px 8px #2c1e13'
-                                        : '4px 4px 8px #e0d8cc, -4px -4px 8px #ffffff',
+                                        ? '3px 3px 6px #1a120b, -3px -3px 6px #2c1e13'
+                                        : '3px 3px 6px #e0d8cc, -3px -3px 6px #ffffff',
                                     color: '#e56e06'
                                 } : undefined}
                             >
@@ -282,66 +277,53 @@ export default function BreathingModal({ isOpen, onClose, isDarkMode = false }: 
                         ))}
                     </div>
 
-                    {/* Playback Controls */}
-                    <div className="flex items-center gap-8">
+                    {/* Playback Controls - smaller */}
+                    <div className="flex items-center gap-6">
                         <button
                             onClick={() => setIsMuted(!isMuted)}
-                            className="flex h-12 w-12 items-center justify-center rounded-full transition-all duration-300 hover:-translate-y-0.5"
+                            className="flex h-10 w-10 items-center justify-center rounded-full transition-all duration-300 hover:-translate-y-0.5"
                             style={{
                                 backgroundColor: isDarkMode ? '#23180f' : '#fcf6f0',
                                 boxShadow: isDarkMode
-                                    ? '8px 8px 16px #1a120b, -8px -8px 16px #2c1e13'
-                                    : '8px 8px 16px #e0d8cc, -8px -8px 16px #ffffff',
+                                    ? '6px 6px 12px #1a120b, -6px -6px 12px #2c1e13'
+                                    : '6px 6px 12px #e0d8cc, -6px -6px 12px #ffffff',
                                 color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'
                             }}
                         >
-                            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                            {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                         </button>
 
                         <button
                             onClick={() => setIsPaused(!isPaused)}
-                            className="flex h-20 w-20 items-center justify-center rounded-full transition-all duration-300 hover:scale-105"
+                            className="flex h-14 w-14 items-center justify-center rounded-full transition-all duration-300 hover:scale-105"
                             style={{
                                 backgroundColor: isDarkMode ? '#23180f' : '#fcf6f0',
                                 boxShadow: isDarkMode
-                                    ? '8px 8px 16px #1a120b, -8px -8px 16px #2c1e13'
-                                    : '8px 8px 16px #e0d8cc, -8px -8px 16px #ffffff',
+                                    ? '6px 6px 12px #1a120b, -6px -6px 12px #2c1e13'
+                                    : '6px 6px 12px #e0d8cc, -6px -6px 12px #ffffff',
                                 color: '#e56e06'
                             }}
                         >
-                            {isPaused ? <Play size={32} /> : <Pause size={32} />}
-                        </button>
-
-                        <button
-                            className="flex h-12 w-12 items-center justify-center rounded-full transition-all duration-300 hover:-translate-y-0.5"
-                            style={{
-                                backgroundColor: isDarkMode ? '#23180f' : '#fcf6f0',
-                                boxShadow: isDarkMode
-                                    ? '8px 8px 16px #1a120b, -8px -8px 16px #2c1e13'
-                                    : '8px 8px 16px #e0d8cc, -8px -8px 16px #ffffff',
-                                color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'
-                            }}
-                        >
-                            <Settings size={20} />
+                            {isPaused ? <Play size={24} /> : <Pause size={24} />}
                         </button>
                     </div>
                 </div>
             </main>
 
-            {/* Footer / Progress */}
-            <div className="w-full px-12 pb-8 pt-4">
-                <div className={`flex justify-between text-xs font-medium uppercase tracking-wider mb-2 ${isDarkMode ? 'text-white/40' : 'text-gray-400'}`}>
+            {/* Footer / Progress - compact */}
+            <div className="w-full px-8 pb-4 pt-2">
+                <div className={`flex justify-between text-[10px] font-medium uppercase tracking-wider mb-1.5 ${isDarkMode ? 'text-white/40' : 'text-gray-400'}`}>
                     <span>{isPaused ? 'Paused' : 'Relaxing'}</span>
                     <span>{formatTime(elapsedTime)} / {formatTime(DURATIONS[selectedDuration].seconds)}</span>
                 </div>
-                {/* Neomorphic Progress Bar */}
+                {/* Progress Bar */}
                 <div
-                    className="h-4 w-full rounded-full p-[2px]"
+                    className="h-3 w-full rounded-full p-[2px]"
                     style={{
                         backgroundColor: isDarkMode ? '#23180f' : '#fcf6f0',
                         boxShadow: isDarkMode
-                            ? 'inset 6px 6px 12px #1a120b, inset -6px -6px 12px #2c1e13'
-                            : 'inset 6px 6px 12px #e0d8cc, inset -6px -6px 12px #ffffff'
+                            ? 'inset 4px 4px 8px #1a120b, inset -4px -4px 8px #2c1e13'
+                            : 'inset 4px 4px 8px #e0d8cc, inset -4px -4px 8px #ffffff'
                     }}
                 >
                     <div
@@ -351,7 +333,7 @@ export default function BreathingModal({ isOpen, onClose, isDarkMode = false }: 
                             background: 'linear-gradient(to right, rgba(229,110,6,0.8), #e56e06)'
                         }}
                     >
-                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full opacity-50 mr-1" />
+                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-white rounded-full opacity-50 mr-0.5" />
                     </div>
                 </div>
             </div>
